@@ -1,35 +1,43 @@
 -- NB:
 -- * command does NOT overwrite pre-existing user command
 
-local cmd = vifm.plugin.require("command")
+local require = vifm.plugin.require
+local cmds = vifm.plugin.require("cmds")(require)
+local openers = vifm.plugin.require("openers")(require)
+local viewers = vifm.plugin.require("viewers")(require)
+local vicmd = vifm.plugin.require("vicmd")(vifm)
 
 local M = {}
 
 assert(vifm.cmds.add({
-  name = "Hello",
-  description = "greet",
-  handler = cmd.greet,
-  maxargs = -1,
-}))
-
-assert(vifm.cmds.add({
   name = "Probe",
   description = "probe what vifm provides",
-  handler = cmd.probe,
+  handler = cmds.probe,
   maxargs = -1,
 }))
 
 vifm.cmds.add({
   name = "OpenInNvim",
   description = "open file under cursor in nvim",
-  handler = cmd.open,
+  handler = cmds.open,
   maxargs = 0,
 })
 
 vifm.addhandler({
-  name = "run",
+  name = "open",
+  handler = openers.open,
+})
+
+vifm.addhandler({
+  name = "view",
+  handler = viewers.show,
+})
+
+vifm.addhandler({
+  name = "vicmd",
   handler = function(info)
-    vifm.sb.quick("gotta")
+    vifm.sb.err(string.format("vicmd.action: %s", info.action))
+    return vicmd(info)
   end,
 })
 
