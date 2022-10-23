@@ -1,1 +1,1 @@
-return require("reveal.longterm").open
+return require("reveal.longterm")

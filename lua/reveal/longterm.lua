@@ -101,7 +101,7 @@ local function create_canvas(host_win_id)
 end
 
 ---@param lines table
-local function handle_selection(lines)
+local function default_selection_handler(lines)
   log.debug("reveal.nvim handling %s", vim.inspect(lines))
   local file = lines[1]
   if file == "" then return end
@@ -112,10 +112,14 @@ local function handle_selection(lines)
   api.nvim_cmd({ cmd = "edit", args = { file } }, {})
 end
 
-local function main(callback)
-  assert(state.inited)
-
+---@return table
+local function default_vifm_cmd()
   local root = vim.fn.expand("%:p:h")
+  return { "vifm", root, root, "-c", "only" }
+end
+
+local function open(vifm_cmd_fn, callback)
+  setup()
 
   state.win_id = create_canvas(api.nvim_get_current_win())
 
@@ -147,11 +151,13 @@ local function main(callback)
 
   -- todo: check job is alive?
   if state.job == nil then
-    -- stylua: ignore
-    local cmd = {
-      "vifm", root, root,
-      "-c", "filetype * #nvim#open",
-    }
+    local cmd
+    do
+      cmd = vifm_cmd_fn()
+      table.insert(cmd, "-c")
+      table.insert(cmd, "filetype * #nvim#open")
+    end
+
     state.job = vim.fn.termopen(cmd, {
       env = { NVIM_PIPE = facts.fifo_path },
       on_exit = function(job_id, status, event)
@@ -168,12 +174,12 @@ local function main(callback)
   api.nvim_cmd({ cmd = "startinsert" }, {})
 end
 
-return {
-  open = function()
-    setup()
-    main(handle_selection)
-  end,
-  inspect = function()
-    return state
-  end,
-}
+return function(vifm_cmd, selection_handler)
+  if vifm_cmd then
+    assert(type(vifm_cmd) == "function")
+  else
+    vifm_cmd = default_vifm_cmd
+  end
+
+  open(vifm_cmd, selection_handler or default_selection_handler)
+end
