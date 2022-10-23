@@ -21,26 +21,28 @@ local shared = (function()
 end)()
 
 local openers = require("openers")(shared)
-local viewers = require("viewers")(shared)
-local vicmd = require("vicmd")(shared)
 
 vifm.addhandler({
   name = "open",
   handler = openers.open,
 })
 
-vifm.addhandler({
-  name = "view",
-  handler = viewers.show,
-})
+if false then
+  local viewers = require("viewers")(shared)
+  local vicmd = require("vicmd")(shared)
+  vifm.addhandler({
+    name = "view",
+    handler = viewers.show,
+  })
 
-vifm.addhandler({
-  name = "vicmd",
-  handler = function(info)
-    vifm.sb.err(string.format("vicmd.action: %s", info.action))
-    return vicmd(info)
-  end,
-})
+  vifm.addhandler({
+    name = "vicmd",
+    handler = function(info)
+      vifm.sb.err(string.format("vicmd.action: %s", info.action))
+      return vicmd(info)
+    end,
+  })
+end
 
 -- vifm always expects a table returned from a plugin/init.lua
 return {}

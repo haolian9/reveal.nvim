@@ -1,4 +1,0 @@
-filetype   * #nvim#open
-fileviewer * #nvim#view
-
-set vicmd='#nvim#vicmd nvim'
