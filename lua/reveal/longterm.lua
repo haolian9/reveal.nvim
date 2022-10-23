@@ -5,7 +5,7 @@ local log = require("reveal.Logger")("reveal", vim.log.levels.DEBUG)
 local unsafe = require("reveal.unsafe")
 
 local facts = (function()
-  local fifo_path = string.format("%s/%s", vim.fn.stdpath("run"), "reveal.fifo")
+  local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())
   log.debug("fifo_path=%s", fifo_path)
 
   local ns = api.nvim_create_namespace("reveal.nvim")
