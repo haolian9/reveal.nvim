@@ -80,12 +80,18 @@ local state = {
   end,
 }
 
-local function create_canvas(host_win_id)
-  if not state:is_buf_valid() then state.bufnr = api.nvim_create_buf(false, true) end
-  local bufnr = state.bufnr
+return function()
+  local need_register_dismiss_keymaps = false
 
-  local win_id
+  -- term buf, should be reused
+  if not state:is_buf_valid() then
+    need_register_dismiss_keymaps = true
+    state.bufnr = api.nvim_create_buf(false, true)
+  end
+
+  -- window, should be disposable
   do
+    local host_win_id = api.nvim_get_current_win()
     local host_win_width = api.nvim_win_get_width(host_win_id)
     local host_win_height = api.nvim_win_get_height(host_win_id)
 
@@ -95,73 +101,62 @@ local function create_canvas(host_win_id)
     local col = math.floor(host_win_width * 0.1)
 
     -- stylua: ignore
-    win_id = api.nvim_open_win(bufnr, true, {
+    state.win_id = api.nvim_open_win(state.bufnr, true, {
       relative = 'win', style = 'minimal', border = 'single',
       width = width, height = height, row = row, col = col,
     })
-    api.nvim_win_set_hl_ns(win_id, facts.ns)
+
+    api.nvim_win_set_hl_ns(state.win_id, facts.ns)
+    api.nvim_create_autocmd("WinLeave", {
+      once = true,
+      callback = function()
+        state:close_win()
+        state:clear_ticker()
+      end,
+    })
   end
 
-  return win_id
-end
-
----@param lines table
-local function default_selection_handler(lines)
-  log.debug("reveal.nvim handling %s", vim.inspect(lines))
-  local file = lines[1]
-  if file == "" then return end
-  -- only open first selected file
-  -- todo: custom open cmd
-  -- todo: remember last accessed dir
-  log.debug("editing %s", file)
-  api.nvim_cmd({ cmd = "edit", args = { file } }, {})
-end
-
----@return table
-local function default_vifm_cmd()
-  local root = vim.fn.expand("%:p:h")
-  return { "vifm", root, root, "-c", "only" }
-end
-
-local function open(vifm_cmd_fn, callback)
-  state.win_id = create_canvas(api.nvim_get_current_win())
-
-  api.nvim_create_autocmd("WinLeave", {
-    once = true,
-    callback = function()
-      state:close_win()
-      state:clear_ticker()
-    end,
-  })
-
-  assert(state.ticker == nil)
-  state.ticker = uv.new_timer()
+  -- fifo, should be reused
   if state.fifo == nil then state.fifo = unsafe.FIFO(facts.fifo_path) end
 
-  state.ticker:start(0, facts.repeat_interval, function()
-    local out = state.fifo.read_nowait()
-    -- no output from vifm proc
-    if out == false then return end
+  -- ticker, should be disposable
+  do
+    assert(state.ticker == nil)
+    state.ticker = uv.new_timer()
+    state.ticker:start(0, facts.repeat_interval, function()
+      local file = state.fifo.read_nowait()
+      -- no output from vifm proc
+      if file == false then return end
 
-    vim.schedule(function()
-      state:close_win()
-      -- todo: possible reuse by stop/continue?
-      state:clear_ticker()
+      vim.schedule(function()
+        state:close_win()
+        -- todo: possible reuse by stop/continue?
+        state:clear_ticker()
 
-      if out == "" then return log.err("reveal.fifo has been closed unexpectly") end
+        if file == "" then return log.err("reveal.fifo has been closed unexpectly") end
 
-      log.debug("vifm output: %s", out)
-      -- todo: support multiple selection
-      callback({ out })
+        -- only open first selected file
+        -- todo: support multiple selection
+        -- todo: custom open cmd
+        -- todo: remember last accessed dir
+        log.debug("editing %s", file)
+        api.nvim_cmd({ cmd = "edit", args = { file } }, {})
+      end)
     end)
-  end)
+  end
 
+  -- vifm proc, should be reused
   if state.job == nil then
+    need_register_dismiss_keymaps = true
+
     local cmd
     do
-      cmd = vifm_cmd_fn()
-      table.insert(cmd, "-c")
-      table.insert(cmd, "filetype * #nvim#open")
+      local root = vim.fn.expand("%:p:h")
+      -- stylua: ignore
+      cmd = {
+        "vifm", root, root, "-c", "only",
+        "-c", "filetype * #nvim#open"
+      }
     end
 
     state.job = vim.fn.termopen(cmd, {
@@ -182,15 +177,20 @@ local function open(vifm_cmd_fn, callback)
     })
   end
 
-  api.nvim_cmd({ cmd = "startinsert" }, {})
-end
+  -- keymap for dismiss the vifm window quickly
+  -- caution: fn.termopen will reset all the buffer-scoped keymaps
+  if need_register_dismiss_keymaps then
+    local function quit()
+      assert(state:is_win_valid())
+      state:close_win()
+      state:clear_ticker()
+    end
 
-return function(vifm_cmd, selection_handler)
-  if vifm_cmd then
-    assert(type(vifm_cmd) == "function")
-  else
-    vifm_cmd = default_vifm_cmd
+    vim.keymap.set("n", "q", quit, { buffer = state.bufnr, noremap = true })
+    vim.keymap.set("n", "<esc>", quit, { buffer = state.bufnr, noremap = true })
+    vim.keymap.set("n", "<c-[>", quit, { buffer = state.bufnr, noremap = true })
+    vim.keymap.set("n", "<c-]>", quit, { buffer = state.bufnr, noremap = true })
   end
 
-  open(vifm_cmd, selection_handler or default_selection_handler)
+  api.nvim_cmd({ cmd = "startinsert" }, {})
 end
