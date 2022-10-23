@@ -126,17 +126,23 @@ function M.FIFO(fpath, bufsize, exists_ok)
 
   local buffer = ffi.new("uint8_t[?]", bufsize)
 
+  local safe_errnos = { ERRNO.EWOULDBLOCK }
+
+  local function read_nowait()
+    local nbytes = guard_errno(C.read(fd, buffer, bufsize), safe_errnos)
+    if nbytes then
+      if nbytes == 0 then return "" end
+      return ffi.string(buffer, nbytes)
+    end
+    return false
+  end
+
   ---@return string|nil
   local function read()
-    local safe_errnos = { ERRNO.EWOULDBLOCK }
     while true do
-      local nbytes = guard_errno(C.read(fd, buffer, bufsize), safe_errnos)
-      if nbytes == false then
-        sleep(200)
-      else
-        if nbytes == 0 then return end
-        return ffi.string(buffer, nbytes)
-      end
+      local out = read_nowait()
+      if out then return out end
+      sleep(200)
     end
   end
 
@@ -144,7 +150,6 @@ function M.FIFO(fpath, bufsize, exists_ok)
   ---@param data string
   local function writeall(data)
     local remain = #data
-    local safe_errnos = { ERRNO.EWOULDBLOCK }
     while remain > 0 do
       local read_n = guard_errno(C.write(fd, data, remain), safe_errnos)
       if read_n == false then
@@ -158,6 +163,7 @@ function M.FIFO(fpath, bufsize, exists_ok)
 
   return {
     close = close,
+    read_nowait = read_nowait,
     read = read,
     writeall = writeall,
   }

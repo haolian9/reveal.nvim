@@ -1,5 +1,7 @@
-return function(require)
-  local inspect = require("inspect")
+return function(shared)
+  local vifm = shared.vifm
+  local inspect = shared.require("inspect")
+
   local root = "/tmp/1000-vifm-plugins/"
   local path = string.format("%s/%s", root, "viewers.log")
 

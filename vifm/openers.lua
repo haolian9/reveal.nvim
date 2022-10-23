@@ -1,13 +1,17 @@
-return function(require)
-  local inspect = require("inspect")
-  local root = "/tmp/1000-vifm-plugins/"
-  local path = string.format("%s/%s", root, "openers.log")
-  local file = assert(io.open(path, "a"))
+return function(shared)
+  vifm = shared.vifm
+
+  local fifo
+  do
+    local fifo_path = vifm.expand("$NVIM_PIPE")
+    assert(fifo_path ~= nil)
+    fifo = assert(io.open(fifo_path, "a"))
+  end
 
   local function open(info)
-    vifm.sb.quick("!openers.open")
-    file:write(inspect(info))
-    file:flush()
+    local msg = string.format("%s/%s", info.entry.location, info.entry.name)
+    fifo:write(msg)
+    fifo:flush()
   end
 
   return {

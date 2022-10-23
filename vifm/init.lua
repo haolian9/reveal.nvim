@@ -1,27 +1,28 @@
 -- NB:
 -- * command does NOT overwrite pre-existing user command
 
-local require = vifm.plugin.require
-local cmds = vifm.plugin.require("cmds")(require)
-local openers = vifm.plugin.require("openers")(require)
-local viewers = vifm.plugin.require("viewers")(require)
-local vicmd = vifm.plugin.require("vicmd")(vifm)
+-- stores vifm to share the same require between submods
+-- awaiting https://github.com/vifm/vifm/issues/827
+local require = (function()
+  local _cached_mods = {}
+  local primitive_require = vifm.plugin.require
+  return function(name)
+    if _cached_mods[name] == nil then _cached_mods[name] = primitive_require(name) end
+    return _cached_mods[name]
+  end
+end)()
 
-local M = {}
+local shared = (function()
+  return {
+    vifm = vifm,
+    -- i'm not sure if vifm has a cache for require, so i cache them here explicitly
+    require = require,
+  }
+end)()
 
-assert(vifm.cmds.add({
-  name = "Probe",
-  description = "probe what vifm provides",
-  handler = cmds.probe,
-  maxargs = -1,
-}))
-
-vifm.cmds.add({
-  name = "OpenInNvim",
-  description = "open file under cursor in nvim",
-  handler = cmds.open,
-  maxargs = 0,
-})
+local openers = require("openers")(shared)
+local viewers = require("viewers")(shared)
+local vicmd = require("vicmd")(shared)
 
 vifm.addhandler({
   name = "open",
@@ -41,4 +42,5 @@ vifm.addhandler({
   end,
 })
 
-return M
+-- vifm always expects a table returned from a plugin/init.lua
+return {}
