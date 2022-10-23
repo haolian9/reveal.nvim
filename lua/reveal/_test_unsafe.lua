@@ -1,4 +1,4 @@
-local unsafe = require("vifm.unsafe")
+local unsafe = require("reveal.unsafe")
 
 local function test_1()
   -- local fpath = os.tmpname()

@@ -9,14 +9,14 @@
 local api = vim.api
 local uv = vim.loop
 
-local log = require("vifm.Logger")("vifm", vim.log.levels.DEBUG)
-local unsafe = require("vifm.unsafe")
+local log = require("reveal.Logger")("reveal", vim.log.levels.DEBUG)
+local unsafe = require("reveal.unsafe")
 
 local facts = (function()
-  local fifo_path = string.format("%s/%s", vim.fn.stdpath("run"), "vifm.fifo")
+  local fifo_path = string.format("%s/%s", vim.fn.stdpath("run"), "reveal.fifo")
   log.debug("fifo_path=%s", fifo_path)
 
-  local ns = api.nvim_create_namespace("awesome.vifm")
+  local ns = api.nvim_create_namespace("reveal.nvim")
   api.nvim_set_hl(ns, "NormalFloat", { default = true })
   api.nvim_set_hl(ns, "FloatBorder", { default = true })
 
@@ -102,7 +102,7 @@ end
 
 ---@param lines table
 local function handle_selection(lines)
-  log.debug("vifm.nvim handling %s", vim.inspect(lines))
+  log.debug("reveal.nvim handling %s", vim.inspect(lines))
   local file = lines[1]
   if file == "" then return end
   -- only open first selected file
@@ -135,7 +135,7 @@ local function main(callback)
       state.ticker:stop()
       state.ticker:close()
       state.ticker = nil
-      if out == "" then return log.err("vifm.fifo has been closed unexpectly") end
+      if out == "" then return log.err("reveal.fifo has been closed unexpectly") end
       vim.schedule(function()
         log.debug("vifm output: %s", out)
         state:close_win()

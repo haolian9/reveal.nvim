@@ -1,5 +1,7 @@
 local api = vim.api
 
+local log = require("reveal.Logger")("reveal.oneshot", vim.log.levels.DEBUG)
+
 -- {ns: namespace, root: str}
 local state = nil
 
@@ -7,7 +9,7 @@ local function setup()
   if state ~= nil then return end
 
   state = {}
-  state.ns = api.nvim_create_namespace("awesome.vifm")
+  state.ns = api.nvim_create_namespace("reveal")
   api.nvim_set_hl(state.ns, "NormalFloat", { default = true })
   api.nvim_set_hl(state.ns, "FloatBorder", { default = true })
 end
@@ -65,7 +67,7 @@ local function main(callback)
   local vifm = vim.fn.termopen({ "vifm", "--choose-files", "-", "--choose-dir", "-", root, root, "-c", "only" }, {
     on_exit = function(job_id, status, event)
       _, _ = job_id, event
-      if status ~= 0 then return jellyfish.err("vifm exit abnormally") end
+      if status ~= 0 then return log.err("vifm exit abnormally") end
       local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
       api.nvim_win_close(win_id, true)
       callback(lines)
