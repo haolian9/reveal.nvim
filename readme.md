@@ -8,12 +8,21 @@
 * too much edge cases in vifm have not been covered properly
 
 ## prerequisites:
+* linux # due to the use of named pipe and `/`
 * nvim 0.8.0
 * vifm 0.12.1
+
+## setup
+* install this plugin via your nvim plugin manager
+* `$ make link-vifm-plugin`
+
+## usage
+* `:lua require'reveal'.open()`
 
 ## todo:
 * [x] openers
     * [x] basic open operation
+    * [ ] custom cmd to launch vifm
     * [ ] able control how the file will be opened in nvim
     * [ ] handle any error to prevent vifm fallback to default opener
     * [ ] handle multiple selection
