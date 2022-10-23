@@ -17,7 +17,7 @@
 * `$ make link-vifm-plugin`
 
 ## usage
-* `:lua require'reveal'.open()`
+* `:lua require'reveal'()`
 
 ## todo:
 * [x] openers
