@@ -5,7 +5,7 @@ local log = require("reveal.Logger")("reveal", vim.log.levels.DEBUG)
 local unsafe = require("reveal.unsafe")
 
 local facts = (function()
-  local fifo_path = string.format("%s/%s", vim.fn.stdpath("run"), "reveal.fifo")
+  local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())
   log.debug("fifo_path=%s", fifo_path)
 
   local ns = api.nvim_create_namespace("reveal.nvim")
@@ -68,6 +68,7 @@ local state = {
     assert(self.ticker == nil, "ticker should be closed before restting fifo")
     if self.fifo == nil then return end
     self.fifo.close()
+    self.fifo = nil
     local ok, errmsg, err = uv.fs_unlink(facts.fifo_path)
     if ok == nil and err ~= "ENOENT" then log.err(errmsg) end
   end,
@@ -133,27 +134,27 @@ local function open(vifm_cmd_fn, callback)
     end,
   })
 
-  if state.ticker == nil then
-    if state.fifo == nil then state.fifo = unsafe.FIFO(facts.fifo_path) end
-    state.ticker = uv.new_timer()
-    state.ticker:start(0, facts.repeat_interval, function()
-      local out = state.fifo.read_nowait()
-      -- no output from vifm proc
-      if out == false then return end
+  assert(state.ticker == nil)
+  state.ticker = uv.new_timer()
+  if state.fifo == nil then state.fifo = unsafe.FIFO(facts.fifo_path) end
 
-      vim.schedule(function()
-        state:close_win()
-        state:clear_ticker()
-      end)
+  state.ticker:start(0, facts.repeat_interval, function()
+    local out = state.fifo.read_nowait()
+    -- no output from vifm proc
+    if out == false then return end
+
+    vim.schedule(function()
+      state:close_win()
+      -- todo: possible reuse by stop/continue?
+      state:clear_ticker()
 
       if out == "" then return log.err("reveal.fifo has been closed unexpectly") end
-      vim.schedule(function()
-        log.debug("vifm output: %s", out)
-        -- todo: support multiple selection
-        callback({ out })
-      end)
+
+      log.debug("vifm output: %s", out)
+      -- todo: support multiple selection
+      callback({ out })
     end)
-  end
+  end)
 
   if state.job == nil then
     local cmd
@@ -169,11 +170,12 @@ local function open(vifm_cmd_fn, callback)
         _, _ = job_id, event
         vim.schedule(function()
           state:close_win()
-          state:reset_term()
           state:clear_ticker()
+          state:reset_term()
           state:reset_fifo()
+
+          if status ~= 0 then return log.err("vifm exit abnormally") end
         end)
-        if status ~= 0 then return log.err("vifm exit abnormally") end
       end,
       stdout_buffered = false,
       stderr_buffered = false,
