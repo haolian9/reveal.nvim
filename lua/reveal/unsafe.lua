@@ -6,7 +6,6 @@ local ffi = require("ffi")
 ffi.cdef([[
   int open(const char* pathname, int flags);
   int close(int fd);
-  int fcntl(int fd, int cmd, long arg);
   int read(int fd, void* buf, unsigned int count);
   int mkfifo(const char * pathname, int mode);
   int write(int fd, const void * buf, unsigned int nbyte);
@@ -52,15 +51,6 @@ local S = {
   IXOTH = oct("00001"),
 }
 
--- see /usr/include/asm-generic/fcntl.h
-local F = {
-  DUPFD = 0,
-  GETFD = 1,
-  SETFD = 2,
-  GETFL = 3,
-  SETFL = 4,
-}
-
 -- see /usr/include/asm-generic/errno-base.h
 local ERRNO = {
   EPERM = 1,
@@ -103,12 +93,6 @@ local function guard_errno(rv, safe_false_errnos)
   error(readable_errno(errno))
 end
 
----@param timeout number @unit=millisecond
-local function sleep(timeout)
-  -- todo: epoll
-  vim.wait(timeout)
-end
-
 ---@param fpath string
 ---@param bufsize number|nil
 ---@diagnostic disable: undefined-field
@@ -118,7 +102,6 @@ function M.FIFO(fpath, bufsize, exists_ok)
 
   guard_errno(C.mkfifo(fpath, bit.bor(S.IRUSR, S.IWUSR)), { ERRNO.EEXIST })
   local fd = guard_errno(C.open(fpath, bit.bor(O.RDWR, O.NONBLOCK)))
-  guard_errno(C.fcntl(fd, F.SETFD, O.NONBLOCK))
 
   local function close()
     guard_errno(C.close(fd))
@@ -137,35 +120,9 @@ function M.FIFO(fpath, bufsize, exists_ok)
     return false
   end
 
-  ---@return string|nil
-  local function read()
-    while true do
-      local out = read_nowait()
-      if out then return out end
-      sleep(200)
-    end
-  end
-
-  -- todo: EAGAIN
-  ---@param data string
-  local function writeall(data)
-    local remain = #data
-    while remain > 0 do
-      local read_n = guard_errno(C.write(fd, data, remain), safe_errnos)
-      if read_n == false then
-        sleep(200)
-      else
-        assert(remain ~= 0)
-        remain = remain - read_n
-      end
-    end
-  end
-
   return {
     close = close,
     read_nowait = read_nowait,
-    read = read,
-    writeall = writeall,
   }
 end
 
