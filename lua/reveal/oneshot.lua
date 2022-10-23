@@ -55,8 +55,6 @@ local function handle_selection(lines)
   state.root = lines[#lines]
   if sufficient_num == 1 then return end
   -- only open first selected file
-  -- todo: custom open cmd
-  -- todo: remember last accessed dir
   api.nvim_cmd({ cmd = "edit", args = { lines[1] } }, {})
 end
 

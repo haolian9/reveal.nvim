@@ -1,11 +1,3 @@
--- possible ways to communicating between nvim and vifm
--- * shares anony pipe between parent nvim and child vifm
--- * shares named pipe
--- * read from specific file
--- * read from vifm.stderr
---   * stdout is not suitable for communication
---   * stderr has not been used by vifm
-
 local api = vim.api
 local uv = vim.loop
 
@@ -30,9 +22,10 @@ end)()
 local state = {
   inited = false,
 
-  -- reusable resources
-  bufnr = nil,
   win_id = nil,
+
+  -- persistent resources
+  bufnr = nil,
   job = nil,
   ticker = nil,
   fifo = nil,
@@ -43,37 +36,48 @@ local state = {
   end,
 
   ---@param self table
-  reset = function(self)
-    -- todo: handle errors
+  is_win_valid = function(self)
+    return self.win_id ~= nil and api.nvim_win_is_valid(self.win_id)
+  end,
 
-    log.debug("reseting state")
+  ---@param self table
+  reset_term = function(self)
+    assert(not self:is_win_valid(), "win should be closed before resetting term.{job,bufnr}")
 
-    vim.fn.chanclose(self.job)
-    self.job = nil
+    if self.job ~= nil then
+      vim.fn.chanclose(self.job)
+      self.job = nil
+    end
 
-    api.nvim_buf_delete(self.bufnr, { force = true })
-    self.bufnr = nil
+    if self.bufnr ~= nil then
+      api.nvim_buf_delete(self.bufnr, { force = true })
+      self.bufnr = nil
+    end
+  end,
 
+  ---@param self table
+  clear_ticker = function(self)
+    if self.ticker == nil then return end
     self.ticker:stop()
     self.ticker:close()
     self.ticker = nil
+  end,
 
-    uv.fs_unlink(self.fifo_path)
+  ---@param self table
+  reset_fifo = function(self)
+    assert(self.ticker == nil, "ticker should be closed before restting fifo")
+    if self.fifo == nil then return end
+    self.fifo.close()
+    local ok, errmsg, err = uv.fs_unlink(facts.fifo_path)
+    if ok == nil and err ~= "ENOENT" then log.err(errmsg) end
   end,
 
   ---@param self table
   close_win = function(self)
-    log.debug("closing win")
     api.nvim_win_close(self.win_id, true)
     self.win_id = nil
   end,
 }
-
-local function setup()
-  if state.inited then return end
-
-  state.inited = true
-end
 
 local function create_canvas(host_win_id)
   if not state:is_buf_valid() then state.bufnr = api.nvim_create_buf(false, true) end
@@ -119,37 +123,38 @@ local function default_vifm_cmd()
 end
 
 local function open(vifm_cmd_fn, callback)
-  setup()
-
   state.win_id = create_canvas(api.nvim_get_current_win())
 
   api.nvim_create_autocmd("WinLeave", {
     once = true,
     callback = function()
       state:close_win()
+      state:clear_ticker()
     end,
   })
 
   if state.ticker == nil then
-    state.fifo = unsafe.FIFO(facts.fifo_path)
+    if state.fifo == nil then state.fifo = unsafe.FIFO(facts.fifo_path) end
     state.ticker = uv.new_timer()
     state.ticker:start(0, facts.repeat_interval, function()
       local out = state.fifo.read_nowait()
+      -- no output from vifm proc
       if out == false then return end
-      state.ticker:stop()
-      state.ticker:close()
-      state.ticker = nil
+
+      vim.schedule(function()
+        state:close_win()
+        state:clear_ticker()
+      end)
+
       if out == "" then return log.err("reveal.fifo has been closed unexpectly") end
       vim.schedule(function()
         log.debug("vifm output: %s", out)
-        state:close_win()
         -- todo: support multiple selection
         callback({ out })
       end)
     end)
   end
 
-  -- todo: check job is alive?
   if state.job == nil then
     local cmd
     do
@@ -162,9 +167,13 @@ local function open(vifm_cmd_fn, callback)
       env = { NVIM_PIPE = facts.fifo_path },
       on_exit = function(job_id, status, event)
         _, _ = job_id, event
-        state:reset()
+        vim.schedule(function()
+          state:close_win()
+          state:reset_term()
+          state:clear_ticker()
+          state:reset_fifo()
+        end)
         if status ~= 0 then return log.err("vifm exit abnormally") end
-        state:close_win()
       end,
       stdout_buffered = false,
       stderr_buffered = false,
