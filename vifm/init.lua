@@ -1,17 +1,23 @@
 -- NB:
 -- * command does NOT overwrite pre-existing user command
 
--- awaiting https://github.com/vifm/vifm/issues/827
-local shared = {
-  vifm = vifm,
-  require = vifm.plugin.require,
-}
+-- todo: close
+local fifo = (function()
+  local fifo_path = vifm.expand("$NVIM_PIPE")
+  assert(fifo_path ~= nil and fifo_path ~= "" and fifo_path ~= "$NVIM_PIPE")
 
-local openers = vifm.plugin.require("openers")(shared)
+  local file, err = io.open(fifo_path, "a")
+  assert(file, err)
+
+  return file
+end)()
 
 vifm.addhandler({
   name = "open",
-  handler = openers.open,
+  handler = function(info)
+    fifo:write(string.format("%s/%s", info.entry.location, info.entry.name))
+    fifo:flush()
+  end,
 })
 
 -- vifm always expects a table returned from a plugin/init.lua
