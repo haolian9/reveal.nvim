@@ -31,15 +31,25 @@
 ## usage
 * `:lua require'reveal'()`
 
+## default settings
+keymap for vifm
+* `normal <c-o>` -> `:sp`
+* `normal <c-/>` -> `:vs`
+* `normal <c-v>` -> `:vs`
+* `normal <c-t>` -> `:tabe`
+
+keymap for nvim's term-buffer used by vifm
+* `normal q`, `normal <esc>`, `normal <c-[>`, `normal <c-]>` -> hide the terminal window
+
 ## todo:
 * [x] `filetype *` handler
     * [x] basic open operation
     * [x] no footprints on vifminfo 
-    * [ ] `:vs`, `:tabe` ...
+    * [x] `:vs`, `:tabe` ...
     * [ ] handle multiple selections
     * [ ] handle all errors happened on vifm side to prevent vifm fallbacking to the default opener
 * [ ] `vicmd` handler
 * [ ] ~`fileviewer *` handler~
-* [ ] settings
+* [ ] custom settings
     * [ ] ~cmd to launch vifm~
     * [ ] ~float window size, position, style ...~

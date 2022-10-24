@@ -124,23 +124,31 @@ return function()
     assert(state.ticker == nil)
     state.ticker = uv.new_timer()
     state.ticker:start(0, facts.repeat_interval, function()
-      local file = state.fifo.read_nowait()
+      local output = state.fifo.read_nowait()
       -- no output from vifm proc
-      if file == false then return end
+      if output == false then return end
+      assert(output ~= "", "fifo has been closed unexpectly")
+
+      local open_cmd, file
+      do
+        assert(vim.endswith(output, "\n\n"), "not a valid output")
+        local sep = " "
+        local sep_at = string.find(output, " ")
+        open_cmd = string.sub(output, 1, sep_at - #sep)
+        -- trailing `\n`
+        file = string.sub(output, sep_at + #sep, #output - 2)
+        assert(open_cmd == "edit" or open_cmd == "tabedit" or open_cmd == "split" or open_cmd == "vsplit")
+      end
 
       vim.schedule(function()
         state:close_win()
-        -- todo: possible reuse by stop/continue?
+        -- todo: possible reusing by stop/continue?
         state:clear_ticker()
-
-        if file == "" then return log.err("reveal.fifo has been closed unexpectly") end
 
         -- only open first selected file
         -- todo: support multiple selection
-        -- todo: custom open cmd
-        -- todo: remember last accessed dir
-        log.debug("editing %s", file)
-        api.nvim_cmd({ cmd = "edit", args = { file } }, {})
+        log.debug("opening: %s %s", open_cmd, vim.inspect(file))
+        api.nvim_cmd({ cmd = open_cmd, args = { file } }, {})
       end)
     end)
   end
