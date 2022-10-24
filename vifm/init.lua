@@ -14,7 +14,7 @@ local fifo = (function()
   return file
 end)()
 
--- if fifo == nil then return {} end
+if fifo == nil then return {} end
 
 -- maybe: leftabove, rightbelow ... modifiers
 local NvimOpenCmd = {
@@ -55,7 +55,6 @@ do
     return function(info)
       _ = info
       local full_path = vifm.expand("%d/%c")
-      vifm.sb.info(string.format("xx %s", open_cmd, full_path))
       sendto_nvim(open_cmd, full_path)
     end
   end
