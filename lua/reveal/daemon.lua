@@ -155,7 +155,9 @@ return function()
       -- stylua: ignore
       cmd = {
         "vifm", root, root, "-c", "only",
-        "-c", "filetype * #nvim#open"
+        "-c", "filetype * #nvim#open",
+        -- no footprints on vifminfo
+        "-c", "set vifminfo="
       }
     end
 
@@ -178,7 +180,7 @@ return function()
   end
 
   -- keymap for dismiss the vifm window quickly
-  -- caution: fn.termopen will reset all the buffer-scoped keymaps
+  -- CAUTION: fn.termopen will reset all the buffer-scoped keymaps
   if need_register_dismiss_keymaps then
     local function quit()
       assert(state:is_win_valid())

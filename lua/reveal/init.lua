@@ -1,1 +1,1 @@
-return require("reveal.longterm")
+return require("reveal.daemon")
