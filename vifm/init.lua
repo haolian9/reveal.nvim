@@ -61,8 +61,10 @@ do
 
   local defns = {
     ["<c-o>"] = NvimOpenCmd.split,
-    ["<c-/>"] = NvimOpenCmd.vsplit,
-    ["<c-v>"] = NvimOpenCmd.vsplit,
+    -- for lhs <c-/>
+    ["<c-_>"] = NvimOpenCmd.vsplit,
+    -- for lhs <c-/> encoded by CSI u
+    ["<esc>[47;5u"] = NvimOpenCmd.vsplit,
     ["<c-t>"] = NvimOpenCmd.tabedit,
   }
 
