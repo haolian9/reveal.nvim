@@ -25,10 +25,12 @@ local NvimOpenCmd = {
 }
 
 local function sendto_nvim(open_cmd, full_path)
-  assert(fifo)
-  assert(NvimOpenCmd[open_cmd])
-  fifo:write(string.format("%s %s\n\n", open_cmd, full_path))
-  fifo:flush()
+  local ok, err = pcall(function()
+    assert(NvimOpenCmd[open_cmd])
+    fifo:write(string.format("%s %s\n\n", open_cmd, full_path))
+    fifo:flush()
+  end)
+  if not ok then vifm.sb.error(err) end
 end
 
 assert(vifm.addhandler({
