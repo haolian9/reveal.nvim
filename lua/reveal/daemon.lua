@@ -20,7 +20,7 @@ local facts = (function()
 end)()
 
 local state = {
-  inited = false,
+  mousescroll = nil,
 
   win_id = nil,
 
@@ -107,11 +107,15 @@ return function()
     })
 
     api.nvim_win_set_hl_ns(state.win_id, facts.ns)
+    state.mousescroll = vim.go.mousescroll
+    vim.go.mousescroll, _ = string.gsub(state.mousescroll, "hor:%d+", "hor:0", 1)
     api.nvim_create_autocmd("WinLeave", {
+      buffer = state.bufnr,
       once = true,
       callback = function()
         state:close_win()
         state:clear_ticker()
+        vim.go.mousescroll = state.mousescroll
       end,
     })
   end
