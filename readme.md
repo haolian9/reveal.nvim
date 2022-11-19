@@ -8,6 +8,7 @@
 ## non-goals
 * fancy TUI on nvim side
 * all the features of vifm.vim
+* nerdtree like
 
 ## status: just-work
 * it uses lua ffi which may crash nvim (though i havent met yet)
