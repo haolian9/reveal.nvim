@@ -1,20 +1,13 @@
--- NB:
--- * command does NOT overwrite pre-existing user command
+---@type file*
+local fifo
+do
+  local path = os.getenv("NVIM_PIPE")
+  if path == nil then return {} end
 
--- todo: close
-local fifo = (function()
-  local fifo_path = vifm.expand("$NVIM_PIPE")
-  if fifo_path == nil then return end
-  if fifo_path == "" then return end
-  if fifo_path == "$NVIM_PIPE" then return end
-
-  local file, err = io.open(fifo_path, "a")
-  assert(file, err)
-
-  return file
-end)()
-
-if fifo == nil then return {} end
+  fifo = assert(io.open(path, "a"))
+  -- stylua: ignore
+  vifm.events.listen({ event = "app.exit", handler = function() fifo:close() end })
+end
 
 -- maybe: leftabove, rightbelow ... modifiers
 local NvimOpenCmd = {
@@ -53,7 +46,7 @@ assert(vifm.cmds.add({
 }))
 
 do
-  local function make_handler(open_cmd)
+  local function make_rhs(open_cmd)
     return function(info)
       _ = info
       local full_path = vifm.expand("%d/%c")
@@ -71,11 +64,7 @@ do
   }
 
   for lhs, open_cmd in pairs(defns) do
-    assert(vifm.keys.add({
-      shortcut = lhs,
-      modes = { "normal" },
-      handler = make_handler(open_cmd),
-    }))
+    assert(vifm.keys.add({ shortcut = lhs, modes = { "normal" }, handler = make_rhs(open_cmd) }))
   end
 end
 

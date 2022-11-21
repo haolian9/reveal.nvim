@@ -19,7 +19,7 @@
 ## prerequisites:
 * linux
 * nvim 0.8.0
-* vifm 0.12.1
+* vifm master
 
 ## setup
 * add it to your nvim plugin manager
@@ -37,16 +37,3 @@ keymaps for vifm
 
 keymaps for nvim terminal-buffer
 * `n q`, `n <esc>`, `n <c-[>`, `n <c-]>` -> hide the terminal-buffer
-
-## todo:
-* [x] `filetype *` handler
-    * [x] basic open operation
-    * [x] `:vs`, `:tabe` ...
-    * [x] no footprints on vifminfo 
-    * [ ] ~handle multiple selections~
-    * [x] handle possible errors on vifm side
-* [ ] ~`vicmd` handler~
-* [ ] ~`fileviewer *` handler~
-* [ ] custom settings
-    * [ ] ~cmd to launch vifm~
-    * [ ] ~float window size, position, style ...~

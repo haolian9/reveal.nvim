@@ -28,6 +28,7 @@ local facts = (function()
   }
 end)()
 
+---@class reveal.daemon.state
 local state = {
   mousescroll = nil,
 
@@ -39,17 +40,17 @@ local state = {
   ticker = nil,
   fifo = nil,
 
-  ---@param self table
+  ---@param self reveal.daemon.state
   is_buf_valid = function(self)
     return self.bufnr ~= nil and api.nvim_buf_is_valid(self.bufnr)
   end,
 
-  ---@param self table
+  ---@param self reveal.daemon.state
   is_win_valid = function(self)
     return self.win_id ~= nil and api.nvim_win_is_valid(self.win_id)
   end,
 
-  ---@param self table
+  ---@param self reveal.daemon.state
   reset_term = function(self)
     assert(not self:is_win_valid(), "win should be closed before resetting term.{job,bufnr}")
 
@@ -64,7 +65,7 @@ local state = {
     end
   end,
 
-  ---@param self table
+  ---@param self reveal.daemon.state
   clear_ticker = function(self)
     if self.ticker == nil then return end
     self.ticker:stop()
@@ -72,7 +73,7 @@ local state = {
     self.ticker = nil
   end,
 
-  ---@param self table
+  ---@param self reveal.daemon.state
   reset_fifo = function(self)
     assert(self.ticker == nil, "ticker should be closed before restting fifo")
     if self.fifo == nil then return end
@@ -82,7 +83,7 @@ local state = {
     if ok == nil and err ~= "ENOENT" then log.err(errmsg) end
   end,
 
-  ---@param self table
+  ---@param self reveal.daemon.state
   close_win = function(self)
     api.nvim_win_close(self.win_id, true)
     self.win_id = nil
