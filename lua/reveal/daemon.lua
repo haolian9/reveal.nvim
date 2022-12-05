@@ -90,7 +90,10 @@ local state = {
   end,
 }
 
-return function()
+---@param root string only having effects on starting new vifm process
+return function(root)
+  root = root or vim.fn.expand("%:p:h")
+
   local need_register_dismiss_keymaps = false
 
   -- term buf, should be reused
@@ -118,7 +121,7 @@ return function()
 
     api.nvim_win_set_hl_ns(state.win_id, facts.ns)
     state.mousescroll = vim.go.mousescroll
-    vim.go.mousescroll, _ = string.gsub(state.mousescroll, "hor:%d+", "hor:0", 1)
+    vim.go.mousescroll = string.gsub(state.mousescroll, "hor:%d+", "hor:0", 1)
     api.nvim_create_autocmd("WinLeave", {
       buffer = state.bufnr,
       once = true,
@@ -173,7 +176,6 @@ return function()
 
     local cmd
     do
-      local root = vim.fn.expand("%:p:h")
       -- stylua: ignore
       cmd = {
         "vifm", root, root, "-c", "only",
