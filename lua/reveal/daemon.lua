@@ -12,19 +12,10 @@ local facts = (function()
   api.nvim_set_hl(ns, "NormalFloat", { default = true })
   api.nvim_set_hl(ns, "FloatBorder", { default = true })
 
-  local term = (function()
-    local t = assert(os.getenv("TERM"))
-    for _, name in ipairs({ "st", "tmux" }) do
-      if vim.startswith(t, name) then return t end
-    end
-    return "screen-256color"
-  end)()
-
   return {
     ns = ns,
     fifo_path = fifo_path,
     repeat_interval = 50,
-    term = term,
   }
 end)()
 
@@ -186,7 +177,7 @@ return function(root)
     end
 
     state.job = vim.fn.termopen(cmd, {
-      env = { TERM = facts.term, NVIM_PIPE = facts.fifo_path },
+      env = { NVIM_PIPE = facts.fifo_path },
       on_exit = function(job_id, status, event)
         _, _ = job_id, event
         vim.schedule(function()
