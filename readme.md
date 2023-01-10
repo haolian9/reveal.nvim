@@ -1,34 +1,24 @@
 
 ## goals
-* vifm daemon
-* showing vifm via nvim's terminal+floatwin
-* opening files in nvim
+* running vifm in nvim's float window
+* daemonized vifm
 * opinionated settings
-
-## non-goals
-* fancy TUI on nvim side
-* all the features of vifm.vim
-* nerdtree like
+* minimal codebase
 
 ## status: just-work
-* it uses lua ffi which may crash nvim (though i havent met yet)
-* no new features are planned
-* custom settings for keymaps, window style, vifm cmd would complicate the
-  code, please consider forking it
+* it uses lua ffi which may crash nvim
+* no new features are planned at now
+* no custom settings for keymap, window style, vifm cmd ...
 
 ## prerequisites:
 * linux
-* nvim 0.8.0
+* nvim 0.8.*
 * vifm master
-
-## setup
-* add it to your nvim plugin manager
-* `$ make link-vifm-plugin`
 
 ## usage
 * `:lua require'reveal'()`
 
-## default settings
+## opinionated settings
 keymaps for vifm
 * `n <cr>`  -> `:e`
 * `n <c-o>` -> `:sp`
@@ -37,3 +27,9 @@ keymaps for vifm
 
 keymaps for nvim terminal-buffer
 * `n q`, `n <esc>`, `n <c-[>`, `n <c-]>` -> hide the terminal-buffer
+
+## non-goals
+* fancy TUI on nvim side
+* all the features of vifm.vim
+* nerdtree like
+

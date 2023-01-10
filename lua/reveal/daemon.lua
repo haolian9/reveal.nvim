@@ -1,19 +1,32 @@
 local api = vim.api
 local uv = vim.loop
 
-local log = require("reveal.Logger")("reveal", vim.log.levels.DEBUG)
+local log = require("reveal.Logger")("reveal", vim.log.levels.INFO)
 local unsafe = require("reveal.unsafe")
 
 local facts = (function()
   local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())
   log.debug("fifo_path=%s", fifo_path)
 
-  local ns = api.nvim_create_namespace("reveal.nvim")
-  api.nvim_set_hl(ns, "NormalFloat", { default = true })
-  api.nvim_set_hl(ns, "FloatBorder", { default = true })
+  local ns
+  do
+    ns = api.nvim_create_namespace("reveal.nvim")
+    api.nvim_set_hl(ns, "NormalFloat", { default = true })
+    api.nvim_set_hl(ns, "FloatBorder", { default = true })
+  end
+
+  local root
+  do
+    local magic = "lua/reveal/daemon.lua"
+    local files = api.nvim_get_runtime_file(magic, false)
+    assert(files and #files == 1)
+    -- 2 to exclude additional `/`
+    root = string.sub(files[1], 1, -(#magic + 2))
+  end
 
   return {
     ns = ns,
+    root = root,
     fifo_path = fifo_path,
     repeat_interval = 50,
   }
@@ -165,16 +178,18 @@ return function(root)
   if state.job == nil then
     need_register_dismiss_keymaps = true
 
-    local cmd
-    do
-      -- stylua: ignore
-      cmd = {
-        "vifm", root, root, "-c", "only",
-        "-c", "filetype * #nvim#open",
-        -- no footprints on vifminfo
-        "-c", "set vifminfo="
-      }
-    end
+    -- stylua: ignore
+    local cmd = {
+      "vifm",
+      -- necessary options
+      "--plugins-dir", string.format("%s/%s", facts.root, "vifm"),
+      "-c", "filetype * #nvim#open",
+      -- only one pane
+      "-c", "only",
+      -- no footprints on vifminfo
+      "-c", "set vifminfo=",
+      root, root,
+    }
 
     state.job = vim.fn.termopen(cmd, {
       env = { NVIM_PIPE = facts.fifo_path },
