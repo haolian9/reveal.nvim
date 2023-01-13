@@ -8,7 +8,6 @@ ffi.cdef([[
   int close(int fd);
   int read(int fd, void* buf, unsigned int count);
   int mkfifo(const char * pathname, int mode);
-  int write(int fd, const void * buf, unsigned int nbyte);
  ]])
 
 local C = ffi.C
@@ -67,17 +66,16 @@ local ERRNO = {
   EWOULDBLOCK = 11,
 }
 
-local function readable_errno(errno) end
-do
+local readable_errno = (function()
   local dict = {}
   for text, no in pairs(ERRNO) do
     dict[no] = text
   end
 
-  readable_errno = function(errno)
+  return function(errno)
     return dict[errno] or errno
   end
-end
+end)()
 
 -- NB: assume `rv == -1` indicates an error
 ---@param safe_false_errnos table

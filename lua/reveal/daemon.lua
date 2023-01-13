@@ -183,7 +183,7 @@ return function(root)
       "vifm",
       -- necessary options
       "--plugins-dir", string.format("%s/%s", facts.root, "vifm"),
-      "-c", "filetype * #nvim#open",
+      "-c", "filetype * #reveal#open",
       -- only one pane
       "-c", "only",
       -- no footprints on vifminfo
