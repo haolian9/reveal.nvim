@@ -3,6 +3,7 @@ local uv = vim.loop
 
 local log = require("reveal.Logger")("reveal", vim.log.levels.INFO)
 local unsafe = require("reveal.unsafe")
+local opstr_iter = require("reveal.opstr_iter")
 
 local facts = (function()
   local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())
@@ -31,6 +32,31 @@ local facts = (function()
     repeat_interval = 50,
   }
 end)()
+
+---@type {[string]: fun(state: reveal.daemon.state, op: string, args: string[])}
+local ops = {}
+do
+  ---@param state reveal.daemon.state
+  ---@param op string
+  ---@param args string[]
+  local function open(state, op, args)
+    assert(#args >= 1)
+    local file = args[1]
+
+    vim.schedule(function()
+      state:close_win()
+      state:clear_ticker()
+
+      -- only open first selected file
+      -- todo: support multiple selection
+      api.nvim_cmd({ cmd = op, args = { file } }, {})
+    end)
+  end
+  ops.edit = open
+  ops.tabedit = open
+  ops.split = open
+  ops.vsplit = open
+end
 
 ---@class reveal.daemon.state
 local state = {
@@ -145,32 +171,20 @@ return function(root)
     assert(state.ticker == nil)
     state.ticker = uv.new_timer()
     state.ticker:start(0, facts.repeat_interval, function()
-      local output = state.fifo.read_nowait()
+      local opstr = state.fifo.read_nowait()
       -- no output from vifm proc
-      if output == false then return end
-      assert(output ~= "", "fifo has been closed unexpectly")
+      if opstr == false then return end
+      assert(opstr ~= "", "fifo has been closed unexpectly")
 
-      local open_cmd, file
-      do
-        assert(vim.endswith(output, "\n\n"), "not a valid output")
-        local sep = " "
-        local sep_at = string.find(output, " ")
-        open_cmd = string.sub(output, 1, sep_at - #sep)
-        -- trailing `\n`
-        file = string.sub(output, sep_at + #sep, #output - 2)
-        assert(open_cmd == "edit" or open_cmd == "tabedit" or open_cmd == "split" or open_cmd == "vsplit")
+      local iter = opstr_iter(opstr)
+      local op = assert(iter(), "missing op")
+      local handler = assert(ops[op], "no available handler")
+      local args = {}
+      for a in iter do
+        table.insert(args, a)
       end
 
-      vim.schedule(function()
-        state:close_win()
-        -- todo: possible reusing by stop/continue?
-        state:clear_ticker()
-
-        -- only open first selected file
-        -- todo: support multiple selection
-        log.debug("opening: %s %s", open_cmd, vim.inspect(file))
-        api.nvim_cmd({ cmd = open_cmd, args = { file } }, {})
-      end)
+      handler(state, op, args)
     end)
   end
 
