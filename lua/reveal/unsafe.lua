@@ -2,13 +2,12 @@ local M = {}
 
 local ffi = require("ffi")
 
---- The libc functions used by this process.
 ffi.cdef([[
   int open(const char* pathname, int flags);
   int close(int fd);
   int read(int fd, void* buf, unsigned int count);
   int mkfifo(const char * pathname, int mode);
- ]])
+]])
 
 local C = ffi.C
 

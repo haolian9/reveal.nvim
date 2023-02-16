@@ -33,31 +33,6 @@ local facts = (function()
   }
 end)()
 
----@type {[string]: fun(state: reveal.daemon.state, op: string, args: string[])}
-local ops = {}
-do
-  ---@param state reveal.daemon.state
-  ---@param op string
-  ---@param args string[]
-  local function open(state, op, args)
-    assert(#args >= 1)
-    local file = args[1]
-
-    vim.schedule(function()
-      state:close_win()
-      state:clear_ticker()
-
-      -- only open first selected file
-      -- todo: support multiple selection
-      api.nvim_cmd({ cmd = op, args = { file } }, {})
-    end)
-  end
-  ops.edit = open
-  ops.tabedit = open
-  ops.split = open
-  ops.vsplit = open
-end
-
 ---@class reveal.daemon.state
 local state = {
   mousescroll = nil,
@@ -120,6 +95,88 @@ local state = {
   end,
 }
 
+local handle_op
+local handle_delayed_ops
+do
+  ---@type {[string]: fun(op: string, args: string[])}
+  local ops = {}
+  local delayed_ops = {}
+  do
+    ---@param op string
+    ---@param args string[]
+    local function open(op, args)
+      assert(#args >= 1)
+      vim.schedule(function()
+        state:close_win()
+        state:clear_ticker()
+        -- todo: support multiple selection
+        api.nvim_cmd({ cmd = op, args = { args[1] } }, {})
+      end)
+    end
+
+    ops.edit = open
+    ops.tabedit = open
+    ops.split = open
+    ops.vsplit = open
+
+    local function delay(handler)
+      table.insert(delayed_ops, handler)
+    end
+
+    ops.mv = function(op, args)
+      assert(op == "mv")
+      local src, dst = unpack(args)
+      assert(src and dst)
+      vim.schedule(function()
+        local bufnr = vim.fn.bufnr(src)
+        if bufnr == -1 then return log.debug("file has not be opened") end
+        if api.nvim_buf_get_option(bufnr, "modified") then return log.debug("do nothing to a modified buffer") end
+        delay(function()
+          -- todo: rename not :bwipe
+          api.nvim_buf_delete(bufnr, { force = false })
+        end)
+      end)
+    end
+    ops.rm = function(op, args)
+      assert(op == "rm")
+      local src = assert(args[1])
+      vim.schedule(function()
+        local bufnr = vim.fn.bufnr(src)
+        if bufnr == -1 then return log.debug("file has not be opened") end
+        if api.nvim_buf_get_option(bufnr, "modified") then return log.debug("do nothing to a modified buffer") end
+        delay(function()
+          api.nvim_buf_delete(bufnr, { force = false })
+        end)
+      end)
+    end
+  end
+
+  handle_op = function(opstr)
+    local iter = opstr_iter(opstr)
+    local op = assert(iter(), "missing op")
+    local handle = assert(ops[op], "no available handler")
+    local args = {}
+    for a in iter do
+      table.insert(args, a)
+    end
+
+    -- need to explicitly call vim.schedule in handler
+    handle(op, args)
+  end
+
+  --calls after vifm window closes
+  --no need to wrapped in a vim.schedule
+  handle_delayed_ops = function()
+    local queue = delayed_ops
+    log.debug("handling %s delayed ops", #queue)
+    delayed_ops = {}
+    for _, handle in ipairs(queue) do
+      local ok, err = pcall(handle)
+      if not ok then log.err(err) end
+    end
+  end
+end
+
 ---@param root string only having effects on starting new vifm process
 return function(root)
   root = root or vim.fn.expand("%:p:h")
@@ -159,6 +216,7 @@ return function(root)
         state:close_win()
         state:clear_ticker()
         vim.go.mousescroll = state.mousescroll
+        handle_delayed_ops()
       end,
     })
   end
@@ -176,15 +234,7 @@ return function(root)
       if opstr == false then return end
       assert(opstr ~= "", "fifo has been closed unexpectly")
 
-      local iter = opstr_iter(opstr)
-      local op = assert(iter(), "missing op")
-      local handler = assert(ops[op], "no available handler")
-      local args = {}
-      for a in iter do
-        table.insert(args, a)
-      end
-
-      handler(state, op, args)
+      handle_op(opstr)
     end)
   end
 
@@ -226,16 +276,13 @@ return function(root)
   -- keymap for dismiss the vifm window quickly
   -- CAUTION: fn.termopen will reset all the buffer-scoped keymaps
   if need_register_dismiss_keymaps then
-    local function quit()
-      assert(state:is_win_valid())
-      state:close_win()
-      state:clear_ticker()
+    local function dismiss()
+      api.nvim_cmd({ cmd = "wincmd", args = { "p" } }, {})
     end
-
-    vim.keymap.set("n", "q", quit, { buffer = state.bufnr, noremap = true })
-    vim.keymap.set("n", "<esc>", quit, { buffer = state.bufnr, noremap = true })
-    vim.keymap.set("n", "<c-[>", quit, { buffer = state.bufnr, noremap = true })
-    vim.keymap.set("n", "<c-]>", quit, { buffer = state.bufnr, noremap = true })
+    vim.keymap.set("n", "q", dismiss, { buffer = state.bufnr, noremap = true })
+    vim.keymap.set("n", "<esc>", dismiss, { buffer = state.bufnr, noremap = true })
+    vim.keymap.set("n", "<c-[>", dismiss, { buffer = state.bufnr, noremap = true })
+    vim.keymap.set("n", "<c-]>", dismiss, { buffer = state.bufnr, noremap = true })
   end
 
   api.nvim_cmd({ cmd = "startinsert" }, {})
