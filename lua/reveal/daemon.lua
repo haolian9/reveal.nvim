@@ -217,8 +217,10 @@ do
 end
 
 ---@param root string only having effects on starting new vifm process
-return function(root)
+---@param enable_fs_sync boolean
+return function(root, enable_fs_sync)
   root = root or vim.fn.expand("%:p:h")
+  if enable_fs_sync == nil then enable_fs_sync = false end
 
   local need_register_dismiss_keymaps = false
 
@@ -299,7 +301,7 @@ return function(root)
     }
 
     state.job = vim.fn.termopen(cmd, {
-      env = { NVIM_PIPE = facts.fifo_path },
+      env = { NVIM_PIPE = facts.fifo_path, NVIM_FS_SYNC = enable_fs_sync and 1 or 0 },
       on_exit = function(job_id, status, event)
         _, _ = job_id, event
         vim.schedule(function()

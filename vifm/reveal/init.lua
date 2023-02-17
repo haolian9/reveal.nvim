@@ -15,34 +15,33 @@ do
     fifo:write("\n\n")
     fifo:flush()
   end
+end
 
-  -- todo: make it optional
-  do
-    local function rm(event)
-      send_to_nvim(event.isdir and "rmdir" or "rm", event.path)
-    end
-    local function mv(event)
-      send_to_nvim(event.isdir and "mvdir" or "mv", event.path, event.target)
-    end
-
-    vifm.events.listen({
-      event = "app.fsop",
-      ---@param event vifm.events.FsopEvent
-      handler = function(event)
-        if event.op == "move" then
-          if event.totrash then
-            rm(event)
-          elseif event.fromtrash then
-            -- pass
-          else
-            mv(event)
-          end
-        elseif event.op == "remove" then
-          rm(event)
-        end
-      end,
-    })
+if os.getenv("NVIM_FS_SYNC") == "1" then
+  local function rm(event)
+    send_to_nvim(event.isdir and "rmdir" or "rm", event.path)
   end
+  local function mv(event)
+    send_to_nvim(event.isdir and "mvdir" or "mv", event.path, event.target)
+  end
+
+  vifm.events.listen({
+    event = "app.fsop",
+    ---@param event vifm.events.FsopEvent
+    handler = function(event)
+      if event.op == "move" then
+        if event.totrash then
+          rm(event)
+        elseif event.fromtrash then
+          -- pass
+        else
+          mv(event)
+        end
+      elseif event.op == "remove" then
+        rm(event)
+      end
+    end,
+  })
 end
 
 -- maybe: leftabove, rightbelow ... modifiers

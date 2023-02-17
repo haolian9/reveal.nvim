@@ -4,7 +4,7 @@
 * daemonized vifm
 * opinionated settings
 * minimal codebase
-* handling some of vifm fsop events (caution: bleeding edge, may hurt)
+* optional handling partial vifm fsop events
 
 ## status: just-work
 * it uses luajit's ffi lib which may crash nvim
@@ -27,6 +27,12 @@ keymaps for vifm
 
 keymaps for nvim terminal-buffer
 * `n q`, `n <esc>`, `n <c-[>`, `n <c-]>` -> hide the terminal-buffer
+
+handling filesystem changes happened on vifm side
+* `mv a b`   -> rename the corresponding nvim buffer
+* `mv a/ b/` -> rename the corresponding nvim buffers under directory a
+* `rm a`     -> no-op
+* `trash a`  -> no-op
 
 ## non-goals
 * fancy TUI on nvim side
