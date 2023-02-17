@@ -4,10 +4,10 @@
 * daemonized vifm
 * opinionated settings
 * minimal codebase
+* handling some of vifm fsop events (caution: bleeding edge, may hurt)
 
 ## status: just-work
 * it uses luajit's ffi lib which may crash nvim
-* no new features are planned at now
 * no custom settings for keymap, window style, vifm cmd ...
 
 ## prerequisites:

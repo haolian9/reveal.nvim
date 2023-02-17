@@ -1,9 +1,10 @@
 local api = vim.api
 local uv = vim.loop
 
-local log = require("reveal.Logger")("reveal", vim.log.levels.INFO)
+local log = require("reveal.Logger")("reveal", vim.log.levels.DEBUG)
 local unsafe = require("reveal.unsafe")
 local opstr_iter = require("reveal.opstr_iter")
+local bufrename = require("reveal.bufrename")
 
 local facts = (function()
   local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())
@@ -100,24 +101,27 @@ local handle_delayed_ops
 do
   ---@type {[string]: fun(op: string, args: string[])}
   local ops = {}
+  --todo: what if ops conflict?
   local delayed_ops = {}
   do
-    ---@param op string
-    ---@param args string[]
-    local function open(op, args)
-      assert(#args >= 1)
-      vim.schedule(function()
-        state:close_win()
-        state:clear_ticker()
-        -- todo: support multiple selection
-        api.nvim_cmd({ cmd = op, args = { args[1] } }, {})
-      end)
-    end
+    do
+      ---@param op string
+      ---@param args string[]
+      local function open(op, args)
+        assert(#args >= 1)
+        vim.schedule(function()
+          state:close_win()
+          state:clear_ticker()
+          -- todo: support multiple selection
+          api.nvim_cmd({ cmd = op, args = { args[1] } }, {})
+        end)
+      end
 
-    ops.edit = open
-    ops.tabedit = open
-    ops.split = open
-    ops.vsplit = open
+      ops.edit = open
+      ops.tabedit = open
+      ops.split = open
+      ops.vsplit = open
+    end
 
     local function delay(handler)
       table.insert(delayed_ops, handler)
@@ -130,24 +134,59 @@ do
       vim.schedule(function()
         local bufnr = vim.fn.bufnr(src)
         if bufnr == -1 then return log.debug("file has not be opened") end
-        if api.nvim_buf_get_option(bufnr, "modified") then return log.debug("do nothing to a modified buffer") end
-        delay(function()
-          -- todo: rename not :bwipe
-          api.nvim_buf_delete(bufnr, { force = false })
-        end)
+        -- stylua: ignore
+        delay(function() bufrename(bufnr, dst) end)
       end)
     end
-    ops.rm = function(op, args)
-      assert(op == "rm")
-      local src = assert(args[1])
-      vim.schedule(function()
-        local bufnr = vim.fn.bufnr(src)
-        if bufnr == -1 then return log.debug("file has not be opened") end
-        if api.nvim_buf_get_option(bufnr, "modified") then return log.debug("do nothing to a modified buffer") end
-        delay(function()
-          api.nvim_buf_delete(bufnr, { force = false })
+
+    do
+      local function renamed_bufs_under_dir(src, dst)
+        local function bufabspath(bufnr)
+          local name = api.nvim_buf_get_name(bufnr)
+          if vim.startswith(name, "/") then return name end
+          return vim.fn.fnamemodify(name, ":p")
+        end
+
+        local function resolve(bufnr)
+          if api.nvim_buf_get_option(bufnr, "buftype") ~= "" then return end
+          local abspath = bufabspath(bufnr)
+          if not vim.startswith(abspath, src) then return end
+          local relpath = string.sub(abspath, #src + 2)
+          return string.format("%s/%s", dst, relpath)
+        end
+
+        local all = api.nvim_list_bufs()
+        local offset = 1
+
+        return function()
+          while offset <= #all do
+            local bufnr = all[offset]
+            offset = offset + 1
+            local newname = resolve(bufnr)
+            if newname ~= nil then return { bufnr, newname } end
+          end
+        end
+      end
+
+      ops.mvdir = function(op, args)
+        assert(op == "mv")
+        local src, dst = unpack(args)
+        assert(src and dst)
+        vim.schedule(function()
+          for tuple in renamed_bufs_under_dir(src) do
+            local bufnr, newname = unpack(tuple)
+            -- stylua: ignore
+            delay(function() bufrename(bufnr, newname) end)
+          end
         end)
-      end)
+      end
+    end
+
+    do
+      local function nop() end
+      -- same as &autoread, we do not do bwipe
+      ops.rm = nop
+      ops.rmdir = nop
     end
   end
 
@@ -160,11 +199,11 @@ do
       table.insert(args, a)
     end
 
-    -- need to explicitly call vim.schedule in handler
+    -- vim.schedule needs to be call explicitly in handler
     handle(op, args)
   end
 
-  --calls after vifm window closes
+  --calls after vifm window closed
   --no need to wrapped in a vim.schedule
   handle_delayed_ops = function()
     local queue = delayed_ops
@@ -233,6 +272,10 @@ return function(root)
       -- no output from vifm proc
       if opstr == false then return end
       assert(opstr ~= "", "fifo has been closed unexpectly")
+
+      vim.schedule(function()
+        log.debug("opstr=%s", vim.inspect(opstr))
+      end)
 
       handle_op(opstr)
     end)
