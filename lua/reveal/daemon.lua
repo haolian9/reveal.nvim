@@ -169,7 +169,7 @@ do
       end
 
       ops.mvdir = function(op, args)
-        assert(op == "mv")
+        assert(op == "mvdir")
         local src, dst = unpack(args)
         assert(src and dst)
         vim.schedule(function()
