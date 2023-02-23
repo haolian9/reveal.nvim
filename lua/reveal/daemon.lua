@@ -4,7 +4,7 @@ local uv = vim.loop
 local log = require("reveal.Logger")("reveal", vim.log.levels.DEBUG)
 local unsafe = require("reveal.unsafe")
 local opstr_iter = require("reveal.opstr_iter")
-local bufrename = require("reveal.bufrename")
+local bufrename = require("infra.bufrename")
 
 local facts = (function()
   local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())

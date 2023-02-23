@@ -14,6 +14,7 @@
 * linux
 * nvim 0.8.*
 * vifm master
+* haolian9/infra.nvim
 
 ## usage
 * `:lua require'reveal'()`
