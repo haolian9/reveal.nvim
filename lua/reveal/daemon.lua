@@ -316,6 +316,8 @@ return function(root, enable_fs_sync)
       stdout_buffered = false,
       stderr_buffered = false,
     })
+
+    bufrename(state.bufnr, string.format("vifm://"))
   end
 
   -- keymap for dismiss the vifm window quickly
