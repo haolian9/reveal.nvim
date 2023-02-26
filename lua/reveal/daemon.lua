@@ -1,10 +1,12 @@
 local api = vim.api
 local uv = vim.loop
 
+local bufrename = require("infra.bufrename")
+local fs = require("infra.fs")
+
 local log = require("reveal.Logger")("reveal", vim.log.levels.DEBUG)
 local unsafe = require("reveal.unsafe")
 local opstr_iter = require("reveal.opstr_iter")
-local bufrename = require("infra.bufrename")
 
 local facts = (function()
   local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())
@@ -17,14 +19,7 @@ local facts = (function()
     api.nvim_set_hl(ns, "FloatBorder", { default = true })
   end
 
-  local root
-  do
-    local magic = "lua/reveal/daemon.lua"
-    local files = api.nvim_get_runtime_file(magic, false)
-    assert(files and #files == 1)
-    -- 2 to exclude additional `/`
-    root = string.sub(files[1], 1, -(#magic + 2))
-  end
+  local root = fs.resolve_plugin_root("reveal", "daemon.lua")
 
   return {
     ns = ns,
@@ -291,7 +286,7 @@ return function(root, enable_fs_sync)
     local cmd = {
       "vifm",
       -- necessary options
-      "--plugins-dir", string.format("%s/%s", facts.root, "vifm"),
+      "--plugins-dir", fs.joinpath(facts.root, "vifm"),
       "-c", "filetype * #reveal#open",
       -- only one pane
       "-c", "only",
