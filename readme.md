@@ -1,3 +1,4 @@
+https://user-images.githubusercontent.com/6236829/238663010-45748118-6650-4500-bff0-1abfa341c94f.mp4
 
 ## goals
 * running vifm in nvim's float window
