@@ -3,14 +3,17 @@ local uv = vim.loop
 
 local bufrename = require("infra.bufrename")
 local fs = require("infra.fs")
+local ex = require("infra.ex")
+local jelly = require("infra.jellyfish")("reveal")
+local popupgeo = require("infra.popupgeo")
+local prefer = require("infra.prefer")
 
-local log = require("reveal.Logger")("reveal", vim.log.levels.DEBUG)
 local unsafe = require("reveal.unsafe")
 local opstr_iter = require("reveal.opstr_iter")
 
 local facts = (function()
   local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())
-  log.debug("fifo_path=%s", fifo_path)
+  jelly.debug("fifo_path=%s", fifo_path)
 
   local ns
   do
@@ -23,9 +26,9 @@ local facts = (function()
 
   return {
     ns = ns,
-    root = root,
     fifo_path = fifo_path,
     repeat_interval = 50,
+    vifm_rtp = fs.joinpath(root, "vifm"),
   }
 end)()
 
@@ -33,7 +36,7 @@ end)()
 local state = {
   mousescroll = nil,
 
-  win_id = nil,
+  winid = nil,
 
   -- persistent resources
   bufnr = nil,
@@ -42,14 +45,10 @@ local state = {
   fifo = nil,
 
   ---@param self reveal.daemon.state
-  is_buf_valid = function(self)
-    return self.bufnr ~= nil and api.nvim_buf_is_valid(self.bufnr)
-  end,
+  is_buf_valid = function(self) return self.bufnr ~= nil and api.nvim_buf_is_valid(self.bufnr) end,
 
   ---@param self reveal.daemon.state
-  is_win_valid = function(self)
-    return self.win_id ~= nil and api.nvim_win_is_valid(self.win_id)
-  end,
+  is_win_valid = function(self) return self.winid ~= nil and api.nvim_win_is_valid(self.winid) end,
 
   ---@param self reveal.daemon.state
   reset_term = function(self)
@@ -81,13 +80,13 @@ local state = {
     self.fifo.close()
     self.fifo = nil
     local ok, errmsg, err = uv.fs_unlink(facts.fifo_path)
-    if ok == nil and err ~= "ENOENT" then log.err(errmsg) end
+    if ok == nil and err ~= "ENOENT" then return jelly.err(errmsg) end
   end,
 
   ---@param self reveal.daemon.state
   close_win = function(self)
-    api.nvim_win_close(self.win_id, true)
-    self.win_id = nil
+    api.nvim_win_close(self.winid, true)
+    self.winid = nil
   end,
 }
 
@@ -108,7 +107,7 @@ do
           state:close_win()
           state:clear_ticker()
           -- todo: support multiple selection
-          api.nvim_cmd({ cmd = op, args = { args[1] } }, {})
+          ex(op, args[1])
         end)
       end
 
@@ -118,9 +117,7 @@ do
       ops.vsplit = open
     end
 
-    local function delay(handler)
-      table.insert(delayed_ops, handler)
-    end
+    local function delay(handler) table.insert(delayed_ops, handler) end
 
     ops.mv = function(op, args)
       assert(op == "mv")
@@ -128,7 +125,7 @@ do
       assert(src and dst)
       vim.schedule(function()
         local bufnr = vim.fn.bufnr(src)
-        if bufnr == -1 then return log.debug("file has not be opened") end
+        if bufnr == -1 then return jelly.debug("file has not be opened") end
         -- stylua: ignore
         delay(function() bufrename(bufnr, dst) end)
       end)
@@ -143,7 +140,7 @@ do
         end
 
         local function resolve(bufnr)
-          if api.nvim_buf_get_option(bufnr, "buftype") ~= "" then return end
+          if prefer.bo(bufnr, "buftype") ~= "" then return end
           local abspath = bufabspath(bufnr)
           if not vim.startswith(abspath, src) then return end
           local relpath = string.sub(abspath, #src + 2)
@@ -202,17 +199,18 @@ do
   --no need to wrapped in a vim.schedule
   handle_delayed_ops = function()
     local queue = delayed_ops
-    log.debug("handling %s delayed ops", #queue)
+    jelly.debug("handling %s delayed ops", #queue)
     delayed_ops = {}
     for _, handle in ipairs(queue) do
       local ok, err = pcall(handle)
-      if not ok then log.err(err) end
+      -- no break here, keep going even if erred
+      if not ok then jelly.err(err) end
     end
   end
 end
 
----@param root string only having effects on starting new vifm process
----@param enable_fs_sync boolean
+---@param root? string only having effects on starting new vifm process
+---@param enable_fs_sync? boolean @nil=false
 return function(root, enable_fs_sync)
   root = root or vim.fn.expand("%:p:h")
   if enable_fs_sync == nil then enable_fs_sync = false end
@@ -227,22 +225,15 @@ return function(root, enable_fs_sync)
 
   -- window, should be disposable
   do
-    local host_win_id = api.nvim_get_current_win()
-    local host_win_width = api.nvim_win_get_width(host_win_id)
-    local host_win_height = api.nvim_win_get_height(host_win_id)
-
-    local width = math.floor(host_win_width * 0.8)
-    local height = math.floor(host_win_height * 0.8)
-    local row = math.floor(host_win_height * 0.1)
-    local col = math.floor(host_win_width * 0.1)
+    local width, height, row, col = popupgeo.editor_central(0.8, 0.8)
 
     -- stylua: ignore
-    state.win_id = api.nvim_open_win(state.bufnr, true, {
-      relative = 'win', style = 'minimal', border = 'single',
+    state.winid = api.nvim_open_win(state.bufnr, true, {
+      relative = 'editor', style = 'minimal', border = 'single',
       width = width, height = height, row = row, col = col,
     })
 
-    api.nvim_win_set_hl_ns(state.win_id, facts.ns)
+    api.nvim_win_set_hl_ns(state.winid, facts.ns)
     state.mousescroll = vim.go.mousescroll
     vim.go.mousescroll = string.gsub(state.mousescroll, "hor:%d+", "hor:0", 1)
     api.nvim_create_autocmd("WinLeave", {
@@ -270,10 +261,6 @@ return function(root, enable_fs_sync)
       if opstr == false then return end
       assert(opstr ~= "", "fifo has been closed unexpectly")
 
-      vim.schedule(function()
-        log.debug("opstr=%s", vim.inspect(opstr))
-      end)
-
       handle_op(opstr)
     end)
   end
@@ -286,7 +273,7 @@ return function(root, enable_fs_sync)
     local cmd = {
       "vifm",
       -- necessary options
-      "--plugins-dir", fs.joinpath(facts.root, "vifm"),
+      "--plugins-dir", facts.vifm_rtp,
       "-c", "filetype * #reveal#open",
       -- only one pane
       "-c", "only",
@@ -297,15 +284,14 @@ return function(root, enable_fs_sync)
 
     state.job = vim.fn.termopen(cmd, {
       env = { NVIM_PIPE = facts.fifo_path, NVIM_FS_SYNC = enable_fs_sync and 1 or 0 },
-      on_exit = function(job_id, status, event)
-        _, _ = job_id, event
+      on_exit = function(_, status, _)
         vim.schedule(function()
           state:close_win()
           state:clear_ticker()
           state:reset_term()
           state:reset_fifo()
 
-          if status ~= 0 then return log.err("vifm exit abnormally") end
+          if status ~= 0 then return jelly.err("vifm exit abnormally") end
         end)
       end,
       stdout_buffered = false,
@@ -318,14 +304,12 @@ return function(root, enable_fs_sync)
   -- keymap for dismiss the vifm window quickly
   -- CAUTION: fn.termopen will reset all the buffer-scoped keymaps
   if need_register_dismiss_keymaps then
-    local function dismiss()
-      api.nvim_cmd({ cmd = "wincmd", args = { "p" } }, {})
-    end
+    local function dismiss() ex("wincmd", "p") end
     vim.keymap.set("n", "q", dismiss, { buffer = state.bufnr, noremap = true })
     vim.keymap.set("n", "<esc>", dismiss, { buffer = state.bufnr, noremap = true })
     vim.keymap.set("n", "<c-[>", dismiss, { buffer = state.bufnr, noremap = true })
     vim.keymap.set("n", "<c-]>", dismiss, { buffer = state.bufnr, noremap = true })
   end
 
-  api.nvim_cmd({ cmd = "startinsert" }, {})
+  ex("startinsert")
 end

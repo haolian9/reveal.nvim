@@ -18,12 +18,8 @@ do
 end
 
 if os.getenv("NVIM_FS_SYNC") == "1" then
-  local function rm(event)
-    send_to_nvim(event.isdir and "rmdir" or "rm", event.path)
-  end
-  local function mv(event)
-    send_to_nvim(event.isdir and "mvdir" or "mv", event.path, event.target)
-  end
+  local function rm(event) send_to_nvim(event.isdir and "rmdir" or "rm", event.path) end
+  local function mv(event) send_to_nvim(event.isdir and "mvdir" or "mv", event.path, event.target) end
 
   vifm.events.listen({
     event = "app.fsop",
@@ -59,9 +55,7 @@ end
 
 assert(vifm.addhandler({
   name = "open",
-  handler = function(info)
-    open_in_nvim(NvimOpenCmd.edit, string.format("%s/%s", info.entry.location, info.entry.name))
-  end,
+  handler = function(info) open_in_nvim(NvimOpenCmd.edit, string.format("%s/%s", info.entry.location, info.entry.name)) end,
 }))
 
 assert(vifm.cmds.add({
@@ -86,6 +80,7 @@ do
   end
 
   local defns = {
+    ["<cr>"] = NvimOpenCmd.edit,
     ["<c-o>"] = NvimOpenCmd.split,
     -- for lhs <c-/>
     ["<c-_>"] = NvimOpenCmd.vsplit,

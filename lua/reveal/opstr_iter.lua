@@ -1,3 +1,5 @@
+local strlib = require("infra.strlib")
+
 local sep = "\0"
 local ends = "\n\n"
 
@@ -8,7 +10,7 @@ return function(str)
   local start_at = 1
   return function()
     if start_at > #str then return end
-    local sep_at = string.find(str, sep, start_at, true)
+    local sep_at = strlib.find(str, sep, start_at)
     local part
     if sep_at == nil then
       -- excludes the ends

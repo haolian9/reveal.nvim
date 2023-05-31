@@ -11,9 +11,7 @@ ffi.cdef([[
 
 local C = ffi.C
 
-local function oct(lit)
-  return tonumber(lit, 8)
-end
+local function oct(lit) return tonumber(lit, 8) end
 
 -- flag&modes for open
 -- see /usr/include/asm-generic/fcntl.h
@@ -71,9 +69,7 @@ local readable_errno = (function()
     dict[no] = text
   end
 
-  return function(errno)
-    return dict[errno] or errno
-  end
+  return function(errno) return dict[errno] or errno end
 end)()
 
 -- NB: assume `rv == -1` indicates an error
@@ -100,9 +96,7 @@ function M.FIFO(fpath, bufsize, exists_ok)
   guard_errno(C.mkfifo(fpath, bit.bor(S.IRUSR, S.IWUSR)), { ERRNO.EEXIST })
   local fd = guard_errno(C.open(fpath, bit.bor(O.RDWR, O.NONBLOCK)))
 
-  local function close()
-    guard_errno(C.close(fd))
-  end
+  local function close() guard_errno(C.close(fd)) end
 
   local buffer = ffi.new("uint8_t[?]", bufsize)
 
