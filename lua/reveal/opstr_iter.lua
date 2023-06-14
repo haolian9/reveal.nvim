@@ -5,7 +5,7 @@ local ends = "\n\n"
 
 ---@param str string
 return function(str)
-  assert(vim.endswith(str, ends), "not a valid op str")
+  assert(strlib.endswith(str, ends), "not a valid op str")
 
   local start_at = 1
   return function()

@@ -7,6 +7,8 @@ local ex = require("infra.ex")
 local jelly = require("infra.jellyfish")("reveal")
 local popupgeo = require("infra.popupgeo")
 local prefer = require("infra.prefer")
+local bufmap = require("infra.keymap.buffer")
+local strlib = require("infra.strlib")
 
 local unsafe = require("reveal.unsafe")
 local opstr_iter = require("reveal.opstr_iter")
@@ -135,14 +137,14 @@ do
       local function renamed_bufs_under_dir(src, dst)
         local function bufabspath(bufnr)
           local name = api.nvim_buf_get_name(bufnr)
-          if vim.startswith(name, "/") then return name end
+          if strlib.startswith(name, "/") then return name end
           return vim.fn.fnamemodify(name, ":p")
         end
 
         local function resolve(bufnr)
           if prefer.bo(bufnr, "buftype") ~= "" then return end
           local abspath = bufabspath(bufnr)
-          if not vim.startswith(abspath, src) then return end
+          if not strlib.startswith(abspath, src) then return end
           local relpath = string.sub(abspath, #src + 2)
           return string.format("%s/%s", dst, relpath)
         end
@@ -305,10 +307,10 @@ return function(root, enable_fs_sync)
   -- CAUTION: fn.termopen will reset all the buffer-scoped keymaps
   if need_register_dismiss_keymaps then
     local function dismiss() ex("wincmd", "p") end
-    vim.keymap.set("n", "q", dismiss, { buffer = state.bufnr, noremap = true })
-    vim.keymap.set("n", "<esc>", dismiss, { buffer = state.bufnr, noremap = true })
-    vim.keymap.set("n", "<c-[>", dismiss, { buffer = state.bufnr, noremap = true })
-    vim.keymap.set("n", "<c-]>", dismiss, { buffer = state.bufnr, noremap = true })
+    local bm = bufmap.wraps(state.bufnr)
+    for _, lhs in ipairs({ "q", "<esc>", "<c-[>", "<c-]>" }) do
+      bm.n(lhs, dismiss)
+    end
   end
 
   ex("startinsert")
