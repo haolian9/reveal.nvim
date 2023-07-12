@@ -2,32 +2,32 @@ local api = vim.api
 local uv = vim.loop
 
 local bufrename = require("infra.bufrename")
-local fs = require("infra.fs")
 local ex = require("infra.ex")
+local fs = require("infra.fs")
 local jelly = require("infra.jellyfish")("reveal")
+local bufmap = require("infra.keymap.buffer")
 local popupgeo = require("infra.popupgeo")
 local prefer = require("infra.prefer")
-local bufmap = require("infra.keymap.buffer")
 local strlib = require("infra.strlib")
 
-local unsafe = require("reveal.unsafe")
 local opstr_iter = require("reveal.opstr_iter")
+local unsafe = require("reveal.unsafe")
 
 local facts = (function()
   local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())
   jelly.debug("fifo_path=%s", fifo_path)
 
-  local ns
+  local hl_ns
   do
-    ns = api.nvim_create_namespace("reveal.nvim")
-    api.nvim_set_hl(ns, "NormalFloat", { default = true })
-    api.nvim_set_hl(ns, "FloatBorder", { default = true })
+    hl_ns = api.nvim_create_namespace("reveal.nvim")
+    api.nvim_set_hl(hl_ns, "NormalFloat", { default = true })
+    api.nvim_set_hl(hl_ns, "FloatBorder", { default = true })
   end
 
   local root = fs.resolve_plugin_root("reveal", "daemon.lua")
 
   return {
-    ns = ns,
+    hl_ns = hl_ns,
     fifo_path = fifo_path,
     repeat_interval = 50,
     vifm_rtp = fs.joinpath(root, "vifm"),
@@ -235,7 +235,7 @@ return function(root, enable_fs_sync)
       width = width, height = height, row = row, col = col,
     })
 
-    api.nvim_win_set_hl_ns(state.winid, facts.ns)
+    api.nvim_win_set_hl_ns(state.winid, facts.hl_ns)
     state.mousescroll = vim.go.mousescroll
     vim.go.mousescroll = string.gsub(state.mousescroll, "hor:%d+", "hor:0", 1)
     api.nvim_create_autocmd("WinLeave", {
