@@ -1,6 +1,7 @@
 local api = vim.api
 local uv = vim.loop
 
+local bufpath = require("infra.bufpath")
 local bufrename = require("infra.bufrename")
 local ex = require("infra.ex")
 local fs = require("infra.fs")
@@ -135,15 +136,9 @@ do
 
     do
       local function renamed_bufs_under_dir(src, dst)
-        local function bufabspath(bufnr)
-          local name = api.nvim_buf_get_name(bufnr)
-          if strlib.startswith(name, "/") then return name end
-          return vim.fn.fnamemodify(name, ":p")
-        end
-
         local function resolve(bufnr)
-          if prefer.bo(bufnr, "buftype") ~= "" then return end
-          local abspath = bufabspath(bufnr)
+          local abspath = bufpath.file(bufnr)
+          if abspath == nil then return end
           if not strlib.startswith(abspath, src) then return end
           local relpath = string.sub(abspath, #src + 2)
           return string.format("%s/%s", dst, relpath)

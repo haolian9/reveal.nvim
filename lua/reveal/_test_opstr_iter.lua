@@ -1,6 +1,6 @@
-local opstr_iter = require("reveal.opstr_iter")
-
 local strlib = require("infra.strlib")
+
+local opstr_iter = require("reveal.opstr_iter")
 
 local function test_0()
   local ok, err = pcall(opstr_iter, "edit\0foo \0b ar")
