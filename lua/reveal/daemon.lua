@@ -5,10 +5,9 @@ local bufpath = require("infra.bufpath")
 local bufrename = require("infra.bufrename")
 local ex = require("infra.ex")
 local fs = require("infra.fs")
+local handyclosekeys = require("infra.handyclosekeys")
 local jelly = require("infra.jellyfish")("reveal")
-local bufmap = require("infra.keymap.buffer")
 local popupgeo = require("infra.popupgeo")
-local prefer = require("infra.prefer")
 local strlib = require("infra.strlib")
 
 local opstr_iter = require("reveal.opstr_iter")
@@ -36,26 +35,16 @@ local facts = (function()
 end)()
 
 ---@class reveal.daemon.state
-local state = {
-  mousescroll = nil,
-
-  winid = nil,
-
-  -- persistent resources
-  bufnr = nil,
-  job = nil,
-  ticker = nil,
-  fifo = nil,
-
+---@field winid? integer
+---@field bufnr? integer
+---@field job? integer @the vifm process
+---@field ticker? integer @event loop
+---@field fifo? reveal.unsafe.FIFO
+local state = {}
+do
   ---@param self reveal.daemon.state
-  is_buf_valid = function(self) return self.bufnr ~= nil and api.nvim_buf_is_valid(self.bufnr) end,
-
-  ---@param self reveal.daemon.state
-  is_win_valid = function(self) return self.winid ~= nil and api.nvim_win_is_valid(self.winid) end,
-
-  ---@param self reveal.daemon.state
-  reset_term = function(self)
-    assert(not self:is_win_valid(), "win should be closed before resetting term.{job,bufnr}")
+  function state:reset_term()
+    if not (self.winid and api.nvim_win_is_valid(self.winid)) then error("win should be closed before resetting term.{job,bufnr}") end
 
     if self.job ~= nil then
       vim.fn.chanclose(self.job)
@@ -66,35 +55,32 @@ local state = {
       api.nvim_buf_delete(self.bufnr, { force = true })
       self.bufnr = nil
     end
-  end,
+  end
 
-  ---@param self reveal.daemon.state
-  clear_ticker = function(self)
+  function state:clear_ticker()
     if self.ticker == nil then return end
     self.ticker:stop()
     self.ticker:close()
     self.ticker = nil
-  end,
+  end
 
-  ---@param self reveal.daemon.state
-  reset_fifo = function(self)
+  function state:reset_fifo()
     assert(self.ticker == nil, "ticker should be closed before restting fifo")
     if self.fifo == nil then return end
-    self.fifo.close()
+    self.fifo:close()
     self.fifo = nil
     local ok, errmsg, err = uv.fs_unlink(facts.fifo_path)
     if ok == nil and err ~= "ENOENT" then return jelly.err(errmsg) end
-  end,
+  end
 
-  ---@param self reveal.daemon.state
-  close_win = function(self)
+  function state:close_win()
+    if self.winid == nil then return end
     api.nvim_win_close(self.winid, true)
     self.winid = nil
-  end,
-}
+  end
+end
 
-local handle_op
-local handle_delayed_ops
+local handle_op, handle_delayed_ops
 do
   ---@type {[string]: fun(op: string, args: string[])}
   local ops = {}
@@ -129,7 +115,6 @@ do
       vim.schedule(function()
         local bufnr = vim.fn.bufnr(src)
         if bufnr == -1 then return jelly.debug("file has not be opened") end
-        -- stylua: ignore
         delay(function() bufrename(bufnr, dst) end)
       end)
     end
@@ -157,14 +142,13 @@ do
         end
       end
 
-      ops.mvdir = function(op, args)
+      function ops.mvdir(op, args)
         assert(op == "mvdir")
         local src, dst = unpack(args)
         assert(src and dst)
         vim.schedule(function()
           for tuple in renamed_bufs_under_dir(src) do
             local bufnr, newname = unpack(tuple)
-            -- stylua: ignore
             delay(function() bufrename(bufnr, newname) end)
           end
         end)
@@ -214,14 +198,16 @@ return function(root, enable_fs_sync)
 
   local need_register_dismiss_keymaps = false
 
-  -- term buf, should be reused
-  if not state:is_buf_valid() then
-    need_register_dismiss_keymaps = true
-    state.bufnr = api.nvim_create_buf(false, true)
+  do -- term buf, should be reused
+    if state.bufnr == nil then
+      need_register_dismiss_keymaps = true
+      state.bufnr = api.nvim_create_buf(false, true)
+    end
+    assert(api.nvim_buf_is_valid(state.bufnr))
   end
 
-  -- window, should be disposable
-  do
+  do -- window, disposable
+    assert(state.winid == nil)
     local width, height, row, col = popupgeo.editor_central(0.8, 0.8)
 
     -- stylua: ignore
@@ -231,33 +217,30 @@ return function(root, enable_fs_sync)
     })
 
     api.nvim_win_set_hl_ns(state.winid, facts.hl_ns)
-    state.mousescroll = vim.go.mousescroll
-    vim.go.mousescroll = string.gsub(state.mousescroll, "hor:%d+", "hor:0", 1)
-    api.nvim_create_autocmd("WinLeave", {
+
+    api.nvim_create_autocmd("winclosed", {
       buffer = state.bufnr,
       once = true,
       callback = function()
-        state:close_win()
+        state.winid = nil
         state:clear_ticker()
-        vim.go.mousescroll = state.mousescroll
         handle_delayed_ops()
       end,
     })
   end
 
-  -- fifo, should be reused
-  if state.fifo == nil then state.fifo = unsafe.FIFO(facts.fifo_path) end
+  do -- fifo, should be reused
+    if state.fifo == nil then state.fifo = unsafe.FIFO(facts.fifo_path) end
+  end
 
-  -- ticker, should be disposable
-  do
+  do -- ticker, disposable
     assert(state.ticker == nil)
     state.ticker = uv.new_timer()
     state.ticker:start(0, facts.repeat_interval, function()
-      local opstr = state.fifo.read_nowait()
+      local opstr = state.fifo:read_nowait()
       -- no output from vifm proc
       if opstr == false then return end
       assert(opstr ~= "", "fifo has been closed unexpectly")
-
       handle_op(opstr)
     end)
   end
@@ -269,12 +252,12 @@ return function(root, enable_fs_sync)
     -- stylua: ignore
     local cmd = {
       "vifm",
-      -- necessary options
+      --essential options to be functional
       "--plugins-dir", facts.vifm_rtp,
       "-c", "filetype * #reveal#open",
-      -- only one pane
+      --only one pane
       "-c", "only",
-      -- no footprints on vifminfo
+      --avoid footprints on vifminfo
       "-c", "set vifminfo=",
       root, root,
     }
@@ -295,18 +278,12 @@ return function(root, enable_fs_sync)
       stderr_buffered = false,
     })
 
+    --CAUTION: termopen will set the bufname
     bufrename(state.bufnr, string.format("vifm://"))
   end
 
-  -- keymap for dismiss the vifm window quickly
-  -- CAUTION: fn.termopen will reset all the buffer-scoped keymaps
-  if need_register_dismiss_keymaps then
-    local function dismiss() ex("wincmd", "p") end
-    local bm = bufmap.wraps(state.bufnr)
-    for _, lhs in ipairs({ "q", "<esc>", "<c-[>", "<c-]>" }) do
-      bm.n(lhs, dismiss)
-    end
-  end
+  --CAUTION: fn.termopen will reset all the buffer-scoped keymaps
+  if need_register_dismiss_keymaps then handyclosekeys(state.bufnr) end
 
   ex("startinsert")
 end

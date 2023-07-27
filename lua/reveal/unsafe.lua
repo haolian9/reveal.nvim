@@ -63,58 +63,68 @@ local ERRNO = {
   EWOULDBLOCK = 11,
 }
 
-local readable_errno = (function()
-  local dict = {}
+local guard_errno
+do
+  local errno_text = {}
   for text, no in pairs(ERRNO) do
-    dict[no] = text
+    errno_text[no] = text
   end
 
-  return function(errno) return dict[errno] or errno end
-end)()
-
--- NB: assume `rv == -1` indicates an error
----@param safe_false_errnos table
----@return number|false
-local function guard_errno(rv, safe_false_errnos)
-  if rv ~= -1 then return rv end
-  local errno = ffi.errno()
-  if safe_false_errnos ~= nil then
-    for _, v in ipairs(safe_false_errnos) do
-      if errno == v then return false end
+  -- NB: assume `rv == -1` indicates an error
+  ---@param safe_false_errnos table
+  ---@return number|false
+  function guard_errno(rv, safe_false_errnos)
+    if rv ~= -1 then return rv end
+    local errno = ffi.errno()
+    if safe_false_errnos ~= nil then
+      for _, v in ipairs(safe_false_errnos) do
+        if errno == v then return false end
+      end
     end
+    error(errno_text[errno] or errno)
   end
-  error(readable_errno(errno))
 end
 
----@param fpath string
----@param bufsize number|nil
----@diagnostic disable: undefined-field
-function M.FIFO(fpath, bufsize, exists_ok)
-  bufsize = bufsize or 4096
-  if exists_ok == nil then exists_ok = true end
+do
+  ---@class reveal.unsafe.FIFO
+  ---@field private fd userdata
+  ---@field private bufsize integer
+  ---@field private buffer userdata
+  local Prototype = {}
 
-  guard_errno(C.mkfifo(fpath, bit.bor(S.IRUSR, S.IWUSR)), { ERRNO.EEXIST })
-  local fd = guard_errno(C.open(fpath, bit.bor(O.RDWR, O.NONBLOCK)))
+  Prototype.__index = Prototype
 
-  local function close() guard_errno(C.close(fd)) end
+  function Prototype:close() guard_errno(C.close(self.fd)) end
 
-  local buffer = ffi.new("uint8_t[?]", bufsize)
-
-  local safe_errnos = { ERRNO.EWOULDBLOCK }
-
-  local function read_nowait()
-    local nbytes = guard_errno(C.read(fd, buffer, bufsize), safe_errnos)
-    if nbytes then
-      if nbytes == 0 then return "" end
-      return ffi.string(buffer, nbytes)
+  do
+    local safe_errnos = { ERRNO.EWOULDBLOCK }
+    ---when returning: false=closed, ""=unavailable
+    ---@return string|false
+    function Prototype:read_nowait()
+      local nbytes = guard_errno(C.read(self.fd, self.buffer, self.bufsize), safe_errnos)
+      if nbytes then
+        if nbytes == 0 then return "" end
+        return ffi.string(self.buffer, nbytes)
+      end
+      return false
     end
-    return false
   end
 
-  return {
-    close = close,
-    read_nowait = read_nowait,
-  }
+  ---@param fpath string
+  ---@param bufsize? number
+  ---@param exists_ok? boolean @nil=true
+  ---@retur reveal.unsafe.FIFO
+  function M.FIFO(fpath, bufsize, exists_ok)
+    bufsize = bufsize or 4096
+    if exists_ok == nil then exists_ok = true end
+
+    guard_errno(C.mkfifo(fpath, bit.bor(S.IRUSR, S.IWUSR)), { ERRNO.EEXIST })
+    local fd = guard_errno(C.open(fpath, bit.bor(O.RDWR, O.NONBLOCK)))
+
+    local buffer = ffi.new("uint8_t[?]", bufsize)
+
+    return setmetatable({ fd = fd, bufsize = bufsize, buffer = buffer }, Prototype)
+  end
 end
 
 return M
