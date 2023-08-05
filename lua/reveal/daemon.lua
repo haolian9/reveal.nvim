@@ -201,7 +201,7 @@ return function(root, enable_fs_sync)
   do -- term buf, should be reused
     if state.bufnr == nil then
       need_register_dismiss_keymaps = true
-      state.bufnr = api.nvim_create_buf(false, true)
+      state.bufnr = api.nvim_create_buf(false, true) --no ephemeral here
     end
     assert(api.nvim_buf_is_valid(state.bufnr))
   end
