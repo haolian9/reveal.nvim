@@ -44,7 +44,7 @@ local state = {}
 do
   ---@param self reveal.daemon.state
   function state:reset_term()
-    if not (self.winid and api.nvim_win_is_valid(self.winid)) then error("win should be closed before resetting term.{job,bufnr}") end
+    if self.winid and api.nvim_win_is_valid(self.winid) then error("win should be closed before resetting term.{job,bufnr}") end
 
     if self.job ~= nil then
       vim.fn.chanclose(self.job)
