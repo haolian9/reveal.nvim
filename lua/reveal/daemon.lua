@@ -84,7 +84,7 @@ local handle_op, handle_delayed_ops
 do
   ---@type {[string]: fun(op: string, args: string[])}
   local ops = {}
-  --todo: what if ops conflict?
+  --NB: it's an undefined behavior when ops conflict
   local delayed_ops = {}
   do
     do
@@ -95,7 +95,6 @@ do
         vim.schedule(function()
           state:close_win()
           state:clear_ticker()
-          -- todo: support multiple selection
           ex(op, args[1])
         end)
       end
