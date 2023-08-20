@@ -2,6 +2,8 @@ local M = {}
 
 local ffi = require("ffi")
 
+local dictlib = require("infra.dictlib")
+
 ffi.cdef([[
   int open(const char* pathname, int flags);
   int close(int fd);
@@ -65,10 +67,7 @@ local ERRNO = {
 
 local guard_errno
 do
-  local errno_text = {}
-  for text, no in pairs(ERRNO) do
-    errno_text[no] = text
-  end
+  local errno_text = dictlib.flipped(ERRNO)
 
   -- NB: assume `rv == -1` indicates an error
   ---@param safe_false_errnos table
