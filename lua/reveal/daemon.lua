@@ -3,6 +3,7 @@ local uv = vim.loop
 
 local bufpath = require("infra.bufpath")
 local bufrename = require("infra.bufrename")
+local dictlib = require("infra.dictlib")
 local ex = require("infra.ex")
 local fs = require("infra.fs")
 local handyclosekeys = require("infra.handyclosekeys")
@@ -207,13 +208,9 @@ return function(root, enable_fs_sync)
 
   do -- window, disposable
     assert(state.winid == nil)
-    local width, height, row, col = popupgeo.editor_central(0.8, 0.8)
 
-    -- stylua: ignore
-    state.winid = api.nvim_open_win(state.bufnr, true, {
-      relative = 'editor', style = 'minimal', border = 'single',
-      width = width, height = height, row = row, col = col,
-    })
+    local winopts = dictlib.merged({ relative = "editor", border = "single" }, popupgeo.editor(0.8, 0.8))
+    state.winid = api.nvim_open_win(state.bufnr, true, winopts)
 
     api.nvim_win_set_hl_ns(state.winid, facts.hl_ns)
 
