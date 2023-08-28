@@ -3,12 +3,11 @@ local uv = vim.loop
 
 local bufpath = require("infra.bufpath")
 local bufrename = require("infra.bufrename")
-local dictlib = require("infra.dictlib")
 local ex = require("infra.ex")
+local rifts = require("infra.rifts")
 local fs = require("infra.fs")
 local handyclosekeys = require("infra.handyclosekeys")
 local jelly = require("infra.jellyfish")("reveal")
-local popupgeo = require("infra.popupgeo")
 local strlib = require("infra.strlib")
 
 local opstr_iter = require("reveal.opstr_iter")
@@ -18,17 +17,9 @@ local facts = (function()
   local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())
   jelly.debug("fifo_path=%s", fifo_path)
 
-  local hl_ns
-  do
-    hl_ns = api.nvim_create_namespace("reveal.nvim")
-    api.nvim_set_hl(hl_ns, "NormalFloat", { default = true })
-    api.nvim_set_hl(hl_ns, "FloatBorder", { default = true })
-  end
-
   local root = fs.resolve_plugin_root("reveal", "daemon.lua")
 
   return {
-    hl_ns = hl_ns,
     fifo_path = fifo_path,
     repeat_interval = 50,
     vifm_rtp = fs.joinpath(root, "vifm"),
@@ -209,10 +200,7 @@ return function(root, enable_fs_sync)
   do -- window, disposable
     assert(state.winid == nil)
 
-    local winopts = dictlib.merged({ relative = "editor", border = "single" }, popupgeo.editor(0.8, 0.8))
-    state.winid = api.nvim_open_win(state.bufnr, true, winopts)
-
-    api.nvim_win_set_hl_ns(state.winid, facts.hl_ns)
+    state.winid = rifts.open.fragment(state.bufnr, true, { relative = "editor", border = "single" }, { width = 0.8, height = 0.8 })
 
     api.nvim_create_autocmd("winclosed", {
       buffer = state.bufnr,
