@@ -4,10 +4,10 @@ local uv = vim.loop
 local bufpath = require("infra.bufpath")
 local bufrename = require("infra.bufrename")
 local ex = require("infra.ex")
-local rifts = require("infra.rifts")
 local fs = require("infra.fs")
 local handyclosekeys = require("infra.handyclosekeys")
 local jelly = require("infra.jellyfish")("reveal")
+local rifts = require("infra.rifts")
 local strlib = require("infra.strlib")
 
 local opstr_iter = require("reveal.opstr_iter")
@@ -203,12 +203,13 @@ return function(root, enable_fs_sync)
     state.winid = rifts.open.fragment(state.bufnr, true, { relative = "editor", border = "single" }, { width = 0.8, height = 0.8 })
 
     api.nvim_create_autocmd("winclosed", {
-      buffer = state.bufnr,
-      once = true,
-      callback = function()
+      callback = function(args)
+        assert(state.winid ~= nil)
+        if tonumber(args.match) ~= state.winid then return end
         state.winid = nil
         state:clear_ticker()
         handle_delayed_ops()
+        return true
       end,
     })
   end
