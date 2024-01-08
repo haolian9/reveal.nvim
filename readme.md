@@ -1,20 +1,19 @@
+an example to integrate vifm into nvim which utilizes lua API of both
 
-## goals
-* running vifm in nvim's float window
-* daemonized vifm
+## features/limits
+* run vifm in a terminal buffer + floating window
+* communicate between vifm and nvim via pipe
+* able to handle vifm fsop events
 * opinionated settings
-* minimal codebase
-* optional handling partial vifm fsop events
 
 ## status: just-work
-* it uses luajit's ffi lib which may crash nvim
-* no custom settings for keymap, window style, vifm cmd ...
+* it uses ffi which may crash nvim
+* no settings are changeable
 
 ## prerequisites:
 * linux
-* nvim 0.8.*
-* vifm master
-* haolian9/infra.nvim
+* nvim 0.9.*
+* vifm 0.12 and above
 
 ## usage
 * `:lua require'reveal'()`
@@ -30,13 +29,12 @@ keymaps for nvim terminal-buffer
 * `n q`, `n <esc>`, `n <c-[>`, `n <c-]>` -> hide the terminal-buffer
 
 handling filesystem changes happened on vifm side
-* `mv a b`   -> rename the corresponding nvim buffer
-* `mv a/ b/` -> rename the corresponding nvim buffers under directory a
+* `mv a b`   -> rename nvim buffer if any
+* `mv a/ b/` -> rename nvim buffers under dir a if any
 * `rm a`     -> no-op
 * `trash a`  -> no-op
 
 ## non-goals
-* fancy TUI on nvim side
 * all the features of vifm.vim
 * nerdtree like
 
