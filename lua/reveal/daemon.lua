@@ -1,10 +1,9 @@
 local api = vim.api
 local uv = vim.loop
 
-local log = require("reveal.Logger")("reveal", vim.log.levels.DEBUG)
-local unsafe = require("reveal.unsafe")
+local log = require("reveal.Logger")("reveal", vim.log.levels.INFO)
 local opstr_iter = require("reveal.opstr_iter")
-local bufrename = require("infra.bufrename")
+local unsafe = require("reveal.unsafe")
 
 local facts = (function()
   local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())
@@ -47,14 +46,10 @@ local state = {
   fifo = nil,
 
   ---@param self reveal.daemon.state
-  is_buf_valid = function(self)
-    return self.bufnr ~= nil and api.nvim_buf_is_valid(self.bufnr)
-  end,
+  is_buf_valid = function(self) return self.bufnr ~= nil and api.nvim_buf_is_valid(self.bufnr) end,
 
   ---@param self reveal.daemon.state
-  is_win_valid = function(self)
-    return self.win_id ~= nil and api.nvim_win_is_valid(self.win_id)
-  end,
+  is_win_valid = function(self) return self.win_id ~= nil and api.nvim_win_is_valid(self.win_id) end,
 
   ---@param self reveal.daemon.state
   reset_term = function(self)
@@ -123,9 +118,10 @@ do
       ops.vsplit = open
     end
 
-    local function delay(handler)
-      table.insert(delayed_ops, handler)
-    end
+    local function delay(handler) table.insert(delayed_ops, handler) end
+
+    --also note: https://github.com/neovim/neovim/issues/20349
+    local function bufrename(bufnr, name) api.nvim_buf_set_name(bufnr, name) end
 
     ops.mv = function(op, args)
       assert(op == "mv")
@@ -134,7 +130,6 @@ do
       vim.schedule(function()
         local bufnr = vim.fn.bufnr(src)
         if bufnr == -1 then return log.debug("file has not be opened") end
-        -- stylua: ignore
         delay(function() bufrename(bufnr, dst) end)
       end)
     end
@@ -175,7 +170,6 @@ do
         vim.schedule(function()
           for tuple in renamed_bufs_under_dir(src) do
             local bufnr, newname = unpack(tuple)
-            -- stylua: ignore
             delay(function() bufrename(bufnr, newname) end)
           end
         end)
@@ -275,10 +269,6 @@ return function(root, enable_fs_sync)
       if opstr == false then return end
       assert(opstr ~= "", "fifo has been closed unexpectly")
 
-      vim.schedule(function()
-        log.debug("opstr=%s", vim.inspect(opstr))
-      end)
-
       handle_op(opstr)
     end)
   end
@@ -321,9 +311,7 @@ return function(root, enable_fs_sync)
   -- keymap for dismiss the vifm window quickly
   -- CAUTION: fn.termopen will reset all the buffer-scoped keymaps
   if need_register_dismiss_keymaps then
-    local function dismiss()
-      api.nvim_cmd({ cmd = "wincmd", args = { "p" } }, {})
-    end
+    local function dismiss() api.nvim_cmd({ cmd = "wincmd", args = { "p" } }, {}) end
     vim.keymap.set("n", "q", dismiss, { buffer = state.bufnr, noremap = true })
     vim.keymap.set("n", "<esc>", dismiss, { buffer = state.bufnr, noremap = true })
     vim.keymap.set("n", "<c-[>", dismiss, { buffer = state.bufnr, noremap = true })
