@@ -154,7 +154,8 @@ do
     end
   end
 
-  handle_op = function(opstr)
+  ---@param opstr string
+  function handle_op(opstr)
     local iter = opstr_iter(opstr)
     local op = assert(iter(), "missing op")
     local handle = assert(ops[op], "no available handler")
@@ -169,7 +170,7 @@ do
 
   --calls after vifm window closed
   --no need to wrapped in a vim.schedule
-  handle_delayed_ops = function()
+  function handle_delayed_ops()
     local queue = delayed_ops
     jelly.debug("handling %s delayed ops", #queue)
     delayed_ops = {}
