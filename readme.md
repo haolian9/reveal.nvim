@@ -1,24 +1,24 @@
-just an simple **example** shows how to use a vifm daemon in nvim
+just an **example** shows how to integrate vifm with neovim via IPC
 
 https://user-images.githubusercontent.com/6236829/238663010-45748118-6650-4500-bff0-1abfa341c94f.mp4
 
 ## goals/limits
-* running vifm in a nvim float window
-* daemonized vifm
+* running vifm in a nvim floating window
+* long-lived vifm process
 * opinionated settings
 * minimal codebase
 * handling partial vifm fsop events
 
 ## non-goals
 * fancy TUI on nvim side
-* all the features of vifm.vim
+* complete copy of vifm.vim
 * nerdtree like
 * no custom settings for keymap, window style, vifm cmd ...
 
 ## status
-* it just works on my machine (tm)
-* it uses luajit's ffi lib which may crash nvim
-* it is kind of feature freezed
+* just works
+* the use of ffi may crash nvim
+* feature-complete
 * the handling of vifm fsop events is experimental, which has not been tested against complex usecases.
 
 ## how does it work?
@@ -29,8 +29,8 @@ https://user-images.githubusercontent.com/6236829/238663010-45748118-6650-4500-b
     * subscribe filesystem events
     * send commands to the pipe
 * the nvim part is also a lua plugin but for nvim, which will:
-    * spawn a vifm daemon
-    * show the daemon in a float window
+    * spawn a vifm process
+    * show the process in a floating window and terminal buffer
     * poll and enqueue commands from the pipe, process them when user leaved the vifm 
 
 ## prerequisites:
