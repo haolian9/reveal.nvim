@@ -1,1 +1,1 @@
-return require("reveal.daemon")
+return require("reveal.vifm")

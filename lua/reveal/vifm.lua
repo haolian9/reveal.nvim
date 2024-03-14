@@ -17,7 +17,7 @@ local facts = (function()
   local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())
   jelly.debug("fifo_path=%s", fifo_path)
 
-  local root = fs.resolve_plugin_root("reveal", "daemon.lua")
+  local root = fs.resolve_plugin_root("reveal", "vifm.lua")
 
   return {
     fifo_path = fifo_path,
@@ -26,7 +26,7 @@ local facts = (function()
   }
 end)()
 
----@class reveal.daemon.state
+---@class reveal.vifm.state
 ---@field winid? integer
 ---@field bufnr? integer
 ---@field job? integer @the vifm process
@@ -34,7 +34,7 @@ end)()
 ---@field fifo? reveal.unsafe.FIFO
 local state = {}
 do
-  ---@param self reveal.daemon.state
+  ---@param self reveal.vifm.state
   function state:reset_term()
     if self.winid and api.nvim_win_is_valid(self.winid) then error("win should be closed before resetting term.{job,bufnr}") end
 

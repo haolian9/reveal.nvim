@@ -112,7 +112,7 @@ do
   ---@param fpath string
   ---@param bufsize? number
   ---@param exists_ok? boolean @nil=true
-  ---@retur reveal.unsafe.FIFO
+  ---@return reveal.unsafe.FIFO
   function M.FIFO(fpath, bufsize, exists_ok)
     bufsize = bufsize or 4096
     if exists_ok == nil then exists_ok = true end
