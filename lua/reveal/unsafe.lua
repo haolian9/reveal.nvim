@@ -89,17 +89,17 @@ do
   ---@field private fd userdata
   ---@field private bufsize integer
   ---@field private buffer userdata
-  local Prototype = {}
+  local Impl = {}
 
-  Prototype.__index = Prototype
+  Impl.__index = Impl
 
-  function Prototype:close() guard_errno(C.close(self.fd)) end
+  function Impl:close() guard_errno(C.close(self.fd)) end
 
   do
     local safe_errnos = { ERRNO.EWOULDBLOCK }
     ---when returning: false=closed, ""=unavailable
     ---@return string|false
-    function Prototype:read_nowait()
+    function Impl:read_nowait()
       local nbytes = guard_errno(C.read(self.fd, self.buffer, self.bufsize), safe_errnos)
       if nbytes then
         if nbytes == 0 then return "" end
@@ -122,7 +122,7 @@ do
 
     local buffer = ffi.new("uint8_t[?]", bufsize)
 
-    return setmetatable({ fd = fd, bufsize = bufsize, buffer = buffer }, Prototype)
+    return setmetatable({ fd = fd, bufsize = bufsize, buffer = buffer }, Impl)
   end
 end
 
