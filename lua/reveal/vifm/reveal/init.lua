@@ -40,53 +40,55 @@ if os.getenv("NVIM_FS_SYNC") == "1" then
   })
 end
 
--- maybe: leftabove, rightbelow ... modifiers
-local NvimOpenCmd = {
-  edit = "edit",
-  vsplit = "vsplit",
-  split = "split",
-  tabedit = "tabedit",
+local NvimOpenMode = {
+  inplace = "edit-inplace",
+  right = "edit-right",
+  below = "edit-below",
+  tab = "edit-tab",
 }
-
-local function open_in_nvim(open_cmd, full_path)
-  assert(NvimOpenCmd[open_cmd])
-  send_to_nvim(open_cmd, full_path)
-end
 
 assert(vifm.addhandler({
   name = "open",
-  handler = function(info) open_in_nvim(NvimOpenCmd.edit, string.format("%s/%s", info.entry.location, info.entry.name)) end,
+  handler = function(info)
+    local fpath = string.format("%s/%s", info.entry.location, info.entry.name)
+    send_to_nvim(NvimOpenMode.inplace, fpath)
+  end,
 }))
 
 assert(vifm.cmds.add({
   name = "openinnvim",
   handler = function(info)
-    local open_cmd = info.args
-    if open_cmd == "" then open_cmd = NvimOpenCmd.edit end
+    local open_mode = info.args
+    if open_mode == "" then
+      open_mode = NvimOpenMode.inplace
+    else
+      assert(NvimOpenMode[open_mode])
+    end
+
     local full_path = vifm.expand("%d/%c")
-    open_in_nvim(open_cmd, full_path)
+    send_to_nvim(open_mode, full_path)
   end,
   minargs = 0,
   maxargs = 1,
 }))
 
 do
-  local function make_rhs(open_cmd)
+  local function make_rhs(open_mode)
     return function(info)
       _ = info
       local full_path = vifm.expand("%d/%c")
-      open_in_nvim(open_cmd, full_path)
+      send_to_nvim(open_mode, full_path)
     end
   end
 
   local defns = {
-    ["<cr>"] = NvimOpenCmd.edit,
-    ["<c-o>"] = NvimOpenCmd.split,
+    ["<cr>"] = NvimOpenMode.inplace,
+    ["<c-o>"] = NvimOpenMode.below,
     -- for lhs <c-/>
-    ["<c-_>"] = NvimOpenCmd.vsplit,
+    ["<c-_>"] = NvimOpenMode.right,
     -- for lhs <c-/> encoded by CSI u
-    ["<esc>[47;5u"] = NvimOpenCmd.vsplit,
-    ["<c-t>"] = NvimOpenCmd.tabedit,
+    ["<esc>[47;5u"] = NvimOpenMode.right,
+    ["<c-t>"] = NvimOpenMode.tab,
   }
 
   for lhs, open_cmd in pairs(defns) do

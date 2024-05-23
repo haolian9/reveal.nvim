@@ -1,6 +1,7 @@
 local api = vim.api
 local uv = vim.loop
 
+local bufopen = require("infra.bufopen")
 local bufpath = require("infra.bufpath")
 local bufrename = require("infra.bufrename")
 local ex = require("infra.ex")
@@ -78,23 +79,32 @@ do
   local ops = {}
   --NB: it's an undefined behavior when ops conflict
   local delayed_ops = {}
+
   do
     do
-      ---@param op string
+      local op_to_mode = {
+        ["edit-inplace"] = "inplace",
+        ["edit-tab"] = "tab",
+        ["edit-below"] = "below",
+        ["edit-right"] = "right",
+      }
+
+      ---@param op infra.bufopen.Mode
       ---@param args string[]
       local function open(op, args)
+        local mode = op_to_mode[op]
         assert(#args >= 1)
         vim.schedule(function()
           state:close_win()
           state:clear_ticker()
-          ex(op, args[1])
+          bufopen(mode, args[1])
         end)
       end
 
-      ops.edit = open
-      ops.tabedit = open
-      ops.split = open
-      ops.vsplit = open
+      ops["edit-inplace"] = open
+      ops["edit-tab"] = open
+      ops["edit-below"] = open
+      ops["edit-right"] = open
     end
 
     local function delay(handler) table.insert(delayed_ops, handler) end
@@ -268,7 +278,7 @@ return function(root, enable_fs_sync)
     bufrename(state.bufnr, string.format("vifm://"))
   end
 
-  --CAUTION: fn.termopen will reset all the buffer-scoped keymaps
+  --CAUTION: itertools.termopen will reset all the buffer-scoped keymaps
   if need_register_dismiss_keymaps then handyclosekeys(state.bufnr) end
 
   ex("startinsert")
