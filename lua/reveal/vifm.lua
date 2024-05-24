@@ -92,12 +92,11 @@ do
       ---@param op infra.bufopen.Mode
       ---@param args string[]
       local function open(op, args)
-        local mode = op_to_mode[op]
         assert(#args >= 1)
         vim.schedule(function()
           state:close_win()
           state:clear_ticker()
-          bufopen(mode, args[1])
+          assert(bufopen[op_to_mode[op]])(args[1])
         end)
       end
 
