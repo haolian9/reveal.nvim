@@ -1,5 +1,5 @@
 local api = vim.api
-local uv = vim.loop
+local uv = vim.uv
 
 local bufopen = require("infra.bufopen")
 local bufpath = require("infra.bufpath")
