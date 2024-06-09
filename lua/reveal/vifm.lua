@@ -1,12 +1,10 @@
-local api = vim.api
-local uv = vim.uv
-
 local bufopen = require("infra.bufopen")
 local bufpath = require("infra.bufpath")
 local bufrename = require("infra.bufrename")
 local ex = require("infra.ex")
 local fs = require("infra.fs")
 local handyclosekeys = require("infra.handyclosekeys")
+local iuv = require("infra.iuv")
 local jelly = require("infra.jellyfish")("reveal")
 local rifts = require("infra.rifts")
 local strlib = require("infra.strlib")
@@ -14,8 +12,11 @@ local strlib = require("infra.strlib")
 local opstr_iter = require("reveal.opstr_iter")
 local unsafe = require("reveal.unsafe")
 
+local api = vim.api
+local uv = vim.uv
+
 local facts = (function()
-  local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.getpid())
+  local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.os_getpid())
   jelly.debug("fifo_path=%s", fifo_path)
 
   local root = fs.resolve_plugin_root("reveal", "vifm.lua")
@@ -62,8 +63,7 @@ do
     if self.fifo == nil then return end
     self.fifo:close()
     self.fifo = nil
-    local ok, errmsg, err = uv.fs_unlink(facts.fifo_path)
-    if ok == nil and err ~= "ENOENT" then return jelly.err(errmsg) end
+    iuv.fs_unlink(facts.fifo_path)
   end
 
   function state:close_win()
@@ -137,7 +137,7 @@ do
             local bufnr = all[offset]
             offset = offset + 1
             local newname = resolve(bufnr)
-            if newname ~= nil then return { bufnr, newname } end
+            if newname ~= nil then return bufnr, newname end
           end
         end
       end
@@ -147,8 +147,7 @@ do
         local src, dst = unpack(args)
         assert(src and dst)
         vim.schedule(function()
-          for tuple in renamed_bufs_under_dir(src) do
-            local bufnr, newname = unpack(tuple)
+          for bufnr, newname in renamed_bufs_under_dir(src) do
             delay(function() bufrename(bufnr, newname) end)
           end
         end)
@@ -230,7 +229,7 @@ return function(root, enable_fs_sync)
 
   do -- ticker, disposable
     assert(state.ticker == nil)
-    state.ticker = uv.new_timer()
+    state.ticker = iuv.new_timer()
     state.ticker:start(0, facts.repeat_interval, function()
       local opstr = state.fifo:read_nowait()
       -- no output from vifm proc
