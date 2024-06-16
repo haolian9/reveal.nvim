@@ -6,25 +6,26 @@ local fs = require("infra.fs")
 local handyclosekeys = require("infra.handyclosekeys")
 local iuv = require("infra.iuv")
 local jelly = require("infra.jellyfish")("reveal")
+local ni = require("infra.ni")
+local resolve_plugin_root = require("infra.resolve_plugin_root")
 local rifts = require("infra.rifts")
 local strlib = require("infra.strlib")
 
 local opstr_iter = require("reveal.opstr_iter")
 local unsafe = require("reveal.unsafe")
 
-local api = vim.api
 local uv = vim.uv
 
 local facts = (function()
   local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.os_getpid())
   jelly.debug("fifo_path=%s", fifo_path)
 
-  local root = fs.resolve_plugin_root("reveal", "vifm.lua")
+  local root = resolve_plugin_root("reveal", "vifm.lua")
 
   return {
     fifo_path = fifo_path,
     repeat_interval = 50,
-    vifm_rtp = fs.joinpath(root, "vifm"),
+    vifm_rtp = fs.joinpath(root, "lua/vifm"),
   }
 end)()
 
@@ -38,7 +39,7 @@ local state = {}
 do
   ---@param self reveal.vifm.state
   function state:reset_term()
-    if self.winid and api.nvim_win_is_valid(self.winid) then error("win should be closed before resetting term.{job,bufnr}") end
+    if self.winid and ni.win_is_valid(self.winid) then error("win should be closed before resetting term.{job,bufnr}") end
 
     if self.job ~= nil then
       vim.fn.chanclose(self.job)
@@ -46,7 +47,7 @@ do
     end
 
     if self.bufnr ~= nil then
-      api.nvim_buf_delete(self.bufnr, { force = true })
+      ni.buf_delete(self.bufnr, { force = true })
       self.bufnr = nil
     end
   end
@@ -68,7 +69,7 @@ do
 
   function state:close_win()
     if self.winid == nil then return end
-    api.nvim_win_close(self.winid, true)
+    ni.win_close(self.winid, true)
     self.winid = nil
   end
 end
@@ -129,7 +130,7 @@ do
           return string.format("%s/%s", dst, relpath)
         end
 
-        local all = api.nvim_list_bufs()
+        local all = ni.list_bufs()
         local offset = 1
 
         return function()
@@ -201,9 +202,9 @@ return function(root, enable_fs_sync)
   do -- term buf, should be reused
     if state.bufnr == nil then
       need_register_dismiss_keymaps = true
-      state.bufnr = api.nvim_create_buf(false, true) --no ephemeral here
+      state.bufnr = ni.create_buf(false, true) --no ephemeral here
     end
-    assert(api.nvim_buf_is_valid(state.bufnr))
+    assert(ni.buf_is_valid(state.bufnr))
   end
 
   do -- window, disposable
@@ -211,7 +212,7 @@ return function(root, enable_fs_sync)
 
     state.winid = rifts.open.fragment(state.bufnr, true, { relative = "editor", border = "single" }, { width = 0.8, height = 0.8 })
 
-    api.nvim_create_autocmd("winclosed", {
+    ni.create_autocmd("winclosed", {
       callback = function(args)
         assert(state.winid ~= nil)
         if tonumber(args.match) ~= state.winid then return end
