@@ -5,7 +5,7 @@ local ex = require("infra.ex")
 local fs = require("infra.fs")
 local handyclosekeys = require("infra.handyclosekeys")
 local iuv = require("infra.iuv")
-local jelly = require("infra.jellyfish")("reveal")
+local jelly = require("infra.jellyfish")("reveal", "info")
 local ni = require("infra.ni")
 local resolve_plugin_root = require("infra.resolve_plugin_root")
 local rifts = require("infra.rifts")
@@ -20,13 +20,10 @@ local facts = (function()
   local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.os_getpid())
   jelly.debug("fifo_path=%s", fifo_path)
 
-  local root = resolve_plugin_root("reveal", "vifm.lua")
+  local vifm_rtp = string.format("%s/lua/reveal/vifm", resolve_plugin_root("reveal", "vifm.lua"))
+  assert(fs.dir_exists(vifm_rtp))
 
-  return {
-    fifo_path = fifo_path,
-    repeat_interval = 50,
-    vifm_rtp = fs.joinpath(root, "lua/vifm"),
-  }
+  return { fifo_path = fifo_path, repeat_interval = 50, vifm_rtp = vifm_rtp }
 end)()
 
 ---@class reveal.vifm.state
