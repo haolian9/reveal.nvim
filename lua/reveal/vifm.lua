@@ -274,7 +274,7 @@ return function(root, enable_fs_sync)
     bufrename(state.bufnr, string.format("vifm://"))
   end
 
-  --CAUTION: itertools.termopen will reset all the buffer-scoped keymaps
+  --CAUTION: termopen will reset all the buffer-scoped keymaps
   if need_register_dismiss_keymaps then handyclosekeys(state.bufnr) end
 
   ex("startinsert")
