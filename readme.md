@@ -13,7 +13,7 @@ https://user-images.githubusercontent.com/6236829/238663010-45748118-6650-4500-b
 * fancy TUI on nvim side
 * complete copy of vifm.vim
 * nerdtree like
-* no custom settings for keymap, window style, vifm cmd ...
+* custom settings for keymap, window style, vifm cmd ...
 
 ## status
 * just works
@@ -35,7 +35,7 @@ https://user-images.githubusercontent.com/6236829/238663010-45748118-6650-4500-b
 
 ## prerequisites:
 * linux
-* nvim 0.9.*
+* nvim 0.10.*
 * vifm 0.13
 * haolian9/infra.nvim
 
@@ -44,13 +44,15 @@ https://user-images.githubusercontent.com/6236829/238663010-45748118-6650-4500-b
 
 ## opinionated settings
 keymaps (lhs=vifm, rhs=nvim)
-* `n <cr>`  -> `:e`
-* `n <c-o>` -> `:sp`
-* `n <c-/>` -> `:vs`
-* `n <c-t>` -> `:tabe`
+* `n <cr>`     -> `:e`
+* `n <c-o>`    -> `:sp`
+* `n <c-/>`    -> `:vs`
+* `n <c-t>`    -> `:tabe`
+* `n <c-z>`    -> close the vifm window
+* `n <space>.` -> close the vifm window
 
 keymaps for nvim terminal-buffer
-* `n q`, `n <esc>`, `n <c-[>`, `n <c-]>` -> hide the terminal-buffer
+* `n q`, `n <esc>`, `n <c-[>`, `n <c-]>` -> close the vifm window
 
 handling filesystem changes happened on vifm side
 * `mv a b`   -> rename the corresponding nvim buffer
