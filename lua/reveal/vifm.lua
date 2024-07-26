@@ -30,7 +30,7 @@ end)()
 ---@field winid? integer
 ---@field bufnr? integer
 ---@field job? integer @the vifm process
----@field ticker? integer @event loop
+---@field ticker? uv_timer_t @event loop
 ---@field fifo? reveal.unsafe.FIFO
 local state = {}
 do
@@ -158,6 +158,10 @@ do
       ops.rm = nop
       ops.rmdir = nop
     end
+
+    function ops.hide()
+      vim.schedule(function() ni.win_close(0, false) end)
+    end
   end
 
   ---@param opstr string
@@ -170,6 +174,7 @@ do
       table.insert(args, a)
     end
 
+    jelly.debug("received: op=%s, args=%s", op, args)
     -- vim.schedule needs to be call explicitly in handler
     handle(op, args)
   end
