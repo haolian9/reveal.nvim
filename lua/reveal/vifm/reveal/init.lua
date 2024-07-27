@@ -97,13 +97,9 @@ do
 end
 
 do
-  local function handler()
-    vifm.sb.info("hello from c-z")
-    send_to_nvim("hide")
-  end
+  local function handler() send_to_nvim("hide") end
   assert(vifm.keys.add({ shortcut = "<space>.", modes = { "normal" }, handler = handler }))
-  --todo: awaits https://github.com/vifm/vifm/issues/1007
-  -- assert(vifm.keys.add({ shortcut = "<c-z>", modes = { "normal" }, handler = handler, followedby = "none" }))
+  assert(vifm.keys.add({ shortcut = [[<c-z>]], modes = { "normal" }, handler = handler }))
 end
 
 -- vifm always expects a table returned from a plugin/init.lua
