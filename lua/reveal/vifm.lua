@@ -6,6 +6,7 @@ local fs = require("infra.fs")
 local handyclosekeys = require("infra.handyclosekeys")
 local iuv = require("infra.iuv")
 local jelly = require("infra.jellyfish")("reveal", "info")
+local mi = require("infra.mi")
 local ni = require("infra.ni")
 local resolve_plugin_root = require("infra.resolve_plugin_root")
 local rifts = require("infra.rifts")
@@ -17,7 +18,7 @@ local unsafe = require("reveal.unsafe")
 local uv = vim.uv
 
 local facts = (function()
-  local fifo_path = string.format("%s/%s.%d", vim.fn.stdpath("run"), "nvim.reveal", uv.os_getpid())
+  local fifo_path = string.format("%s/%s.%d", mi.stdpath("run"), "nvim.reveal", uv.os_getpid())
   jelly.debug("fifo_path=%s", fifo_path)
 
   local vifm_rtp = string.format("%s/lua/reveal/vifm", resolve_plugin_root("reveal", "vifm.lua"))
