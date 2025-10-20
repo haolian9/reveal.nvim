@@ -112,7 +112,7 @@ do
       local src, dst = unpack(args)
       assert(src and dst)
       vim.schedule(function()
-        local bufnr = vim.fn.bufnr(src)
+        local bufnr = mi.bufnr(src)
         if bufnr == -1 then return jelly.debug("file has not be opened") end
         delay(function() bufrename(bufnr, dst) end)
       end)
