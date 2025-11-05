@@ -92,14 +92,15 @@ do
   }
 
   for lhs, open_cmd in pairs(defns) do
-    assert(vifm.keys.add({ shortcut = lhs, modes = { "normal" }, handler = make_rhs(open_cmd) }))
+    assert(vifm.keys.add({ shortcut = lhs, modes = { "normal" }, handler = make_rhs(open_cmd), description = "[reveal] open a file in nvim" }))
   end
 end
 
 do
   local function handler() send_to_nvim("hide") end
-  assert(vifm.keys.add({ shortcut = "<space>.", modes = { "normal" }, handler = handler }))
-  assert(vifm.keys.add({ shortcut = [[<c-z>]], modes = { "normal" }, handler = handler }))
+  assert(vifm.keys.add({ shortcut = "<space>.", modes = { "normal" }, handler = handler, description = "[reveal] hide vifm" }))
+  --todo: it wont work
+  assert(vifm.keys.add({ shortcut = [[<c-z>]], modes = { "normal" }, handler = handler, description = "[reveal] hide vifm" }))
 end
 
 -- vifm always expects a table returned from a plugin/init.lua
