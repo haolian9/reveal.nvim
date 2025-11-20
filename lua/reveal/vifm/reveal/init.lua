@@ -99,7 +99,7 @@ end
 do
   local function handler() send_to_nvim("hide") end
   assert(vifm.keys.add({ shortcut = "<space>.", modes = { "normal" }, handler = handler, description = "[reveal] hide vifm" }))
-  --todo: it wont work
+  --NB: <c-z> works not in tmux
   assert(vifm.keys.add({ shortcut = [[<c-z>]], modes = { "normal" }, handler = handler, description = "[reveal] hide vifm" }))
 end
 

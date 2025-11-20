@@ -260,7 +260,7 @@ return function(root, enable_fs_sync)
       root, root,
     }
 
-    state.job = vim.fn.termopen(cmd, {
+    state.job = mi.become_term(cmd, {
       env = { NVIM_PIPE = facts.fifo_path, NVIM_FS_SYNC = enable_fs_sync and 1 or 0 },
       on_exit = function(_, status, _)
         vim.schedule(function()
@@ -272,8 +272,6 @@ return function(root, enable_fs_sync)
           if status ~= 0 then return jelly.err("vifm exit abnormally") end
         end)
       end,
-      stdout_buffered = false,
-      stderr_buffered = false,
     })
 
     --CAUTION: termopen will set the bufname
