@@ -35,7 +35,7 @@ https://user-images.githubusercontent.com/6236829/238663010-45748118-6650-4500-b
 
 ## prerequisites:
 * linux
-* nvim 0.10.*
+* nvim 0.11.*
 * vifm 0.13
 * haolian9/infra.nvim
 
